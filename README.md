@@ -1,4 +1,4 @@
-<p alig="center">
+<p align="center">
   <img alt="Wars of Liberty Logo" height="300" src="_wol_logo.png" />
 </p>
 <h1 align="center">Wars of Liberty</h1>
