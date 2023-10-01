@@ -7,6 +7,7 @@
     * Fixed Imperial Age "this is a bug" chat spam.
     * Removed useless/inaccurate blockade chat.
     * The resource forecasting math is now based on aiPlans.
+    * Removed voyage affordability check.
 
     Known issues:
     * Naval gameplay is not supported.
@@ -2050,15 +2051,13 @@ rule MonitorVoyages active minInterval 5 runImmediately group StartupMonitors
     if (aiPlanGetState(plan) == -1)
     {
         aiPlanDestroy(plan);
-        if (kbCanAffordUnit(destination, cRootEscrowID))
-        {
-            plan = planBuild(destination, rangatira_loc, 80.0, rangatira_loc, 80.0);
-            aiPlanSetVariableInt(plan, cBuildPlanBuildUnitID, 0, rangatira);
-            aiPlanAddUnitType(plan, cUnitTypeRangatira, 0, 0, 1);
-            aiPlanAddUnit(plan, rangatira);
-            aiPlanSetEventHandler(plan, cPlanEventStateChange, "HandlerVoyageState");
-            aiPlanSetActive(plan, true);
-        }
+
+        plan = planBuild(destination, rangatira_loc, 80.0, rangatira_loc, 80.0);
+        aiPlanSetVariableInt(plan, cBuildPlanBuildUnitID, 0, rangatira);
+        aiPlanAddUnitType(plan, cUnitTypeRangatira, 0, 0, 1);
+        aiPlanAddUnit(plan, rangatira);
+        aiPlanSetEventHandler(plan, cPlanEventStateChange, "HandlerVoyageState");
+        aiPlanSetActive(plan, true);
     }
     
     gAgingUp = (kbUnitCount(cMyID, cUnitTypeAbstractWonder, cUnitStateBuilding) >= 1);
