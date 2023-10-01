@@ -8,6 +8,7 @@
     * Removed useless/inaccurate blockade chat.
     * The resource forecasting math is now based on aiPlans.
     * Removed voyage affordability check.
+    * Updated MonitorDefensiveOperations.
 
     Known issues:
     * Naval gameplay is not supported.
@@ -2248,103 +2249,73 @@ rule MonitorSettlement inactive minInterval 5 runImmediately
 }
 
 
-rule MonitorDefensiveOperations inactive minInterval 7
+rule MonitorDefensiveOperations inactive minInterval 10
 {
-    xsSetRuleMinIntervalSelf(5);
-    
-    vector gather_point = kbBaseGetFrontVector(cMyID, gMainBase);
-    if (gather_point == cInvalidVector)
-        gather_point = gMainBaseLoc;
-    
-    if (aiPlanGetState(gMainBaseDefensePlan) == -1)
+    // Bring back all unassigned military units to the main base
+    int main_base = kbBaseGetMainID(cMyID);
+    vector main_base_military_gather_point = kbBaseGetMilitaryGatherPoint(cMyID, main_base);
+
+    for(i = 0; < kbUnitCount(cMyID, cUnitTypeLogicalTypeLandMilitary, cUnitStateAlive))
     {
-        aiPlanDestroy(gMainBaseDefensePlan);
-        gMainBaseDefensePlan = planMoveAttack(gather_point, 10);
+        int i_military_unit = findUnit1(cUnitTypeLogicalTypeLandMilitary, cMyID, i);
+        if (kbUnitGetPlanID(i_military_unit) >= 0)
+            continue;
+        
+        vector i_military_unit_position = kbUnitGetPosition(i_military_unit);
+        if (kbUnitGetBaseID(i_military_unit) == kbBaseGetMainID(cMyID))
+            continue;
+        if (kbCanPath2(i_military_unit_position, main_base_military_gather_point, kbUnitGetProtoUnitID(i_military_unit)) == false)
+            continue;
+        
+        aiTaskUnitMove(i_military_unit, main_base_military_gather_point);
     }
     
-    aiPlanSetVariableVector(gMainBaseDefensePlan, cDefendPlanDefendPoint, 0, gather_point);
-    
-    if (kbBaseGetUnderAttack(cMyID, gMainBase))
+    static int main_base_defend_plan = -1;
+    vector main_base_location = kbBaseGetLocation(cMyID, main_base);
+
+    int number_attackers = countUnitsByLocation(cUnitTypeCountsTowardMilitaryScore, cPlayerRelationEnemyNotGaia, main_base_location, 70.0);
+    if (number_attackers <= 2)
     {
-        aiPlanSetDesiredPriority(gMainBaseDefensePlan, 80); // TODO -- Review this value. Esp. after MonitorOffensiveOperations
-        int num_areagroup_mil = countUnitsByAreaGroup(cUnitTypeLogicalTypeLandMilitary, cMyID, kbAreaGroupGetIDByPosition(gMainBaseLoc));
-        int num_assailant = countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, gMainBaseLoc, gMainBaseRadius);
-        int num_allies = countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationAlly, gMainBaseLoc, gMainBaseRadius);
-        int diff = num_allies - num_assailant;
-        int num_reinforcements = 0;
-        if (diff <= 0)
-            num_reinforcements = abs(diff) + 10;
-        int remaining_assignable = num_areagroup_mil - num_reinforcements;
-        for(unit_index = 0 ; < num_areagroup_mil)
-        {
-            int assign_unit = findUnitByAreaGroup(cUnitTypeLogicalTypeLandMilitary, cMyID, kbAreaGroupGetIDByPosition(gMainBaseLoc), unit_index);
-            if (kbUnitIsType(assign_unit, cUnitTypeHero) == true)
-                continue;
-            if (kbUnitGetPlanID(assign_unit) == gMainBaseDefensePlan)
-            {
-                num_reinforcements--;
-                continue;
-            }
-            aiPlanAddUnit(gMainBaseDefensePlan, assign_unit);
-            num_reinforcements--;
-        }
-    }
-    
-    if (not(kbBaseGetUnderAttack(cMyID, gMainBase)))
-        aiPlanSetDesiredPriority(gMainBaseDefensePlan, 10);
-    
-    if (remaining_assignable <= 0)
-        return;
-    
-    int highest_number = 0;
-    int most_endangered = -1;
-    int player_to_help = -1;
-    for(player = 1 ; < cNumberPlayers)
-    {
-        if (kbHasPlayerLost(player) == true)
-            continue;
-        if (kbGetPlayerTeam(player) != kbGetPlayerTeam(cMyID))
-            continue;
-        int player_base = kbBaseGetMainID(player);
-        vector player_base_loc = kbBaseGetLocation(cMyID, player_base);
-        if (kbAreaGroupGetIDByPosition(player_base_loc) != kbAreaGroupGetIDByPosition(gMainBaseLoc))
-            continue;
-        int number = countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, player_base_loc, 80.0);
-        number = number - countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationAlly, player_base_loc, 80.0);
-        if (number <= 5)
-            continue;
-        if (highest_number < number)
-        {
-            highest_number = number;
-            most_endangered = player_base;
-            player_to_help = player;
-        }
-    }
-    
-    static int help_plan = -1;
-    
-    if (highest_number <= 5)
-    {
-        aiPlanDestroy(help_plan);
+        aiPlanDestroy(main_base_defend_plan);
+        main_base_defend_plan = -1;
         return;
     }
     
-    if (aiPlanGetState(help_plan) == -1)
+    int number_defenders = max(10, number_attackers + 10);
+
+    if (main_base_defend_plan == -1)
     {
-        aiPlanDestroy(help_plan);
-        help_plan = planMoveAttack(kbBaseGetLocation(player_to_help, most_endangered));
-        for(unit_index = 0 ; < num_areagroup_mil)
-        {
-            if (remaining_assignable <= 0)
-                break;
-            assign_unit = findUnitByAreaGroup(cUnitTypeLogicalTypeLandMilitary, cMyID, kbAreaGroupGetIDByPosition(gMainBaseLoc));
-            if (kbUnitIsType(assign_unit, cUnitTypeHero) == true)
-                continue;
-            if (aiPlanGetDesiredPriority(kbUnitGetPlanID(assign_unit)) > aiPlanGetDesiredPriority(help_plan))
-                continue;
-            aiPlanAddUnit(help_plan, assign_unit);
-            remaining_assignable--;
-        }
+        main_base_defend_plan = aiPlanCreate("Defend Main Base", cPlanDefend);
+        aiPlanAddUnitType(main_base_defend_plan, cUnitTypeLogicalTypeLandMilitary , 0, 0, 1);
+        aiPlanSetVariableVector(main_base_defend_plan, cDefendPlanDefendPoint, 0, main_base_location);
+        aiPlanSetVariableFloat(main_base_defend_plan, cDefendPlanEngageRange, 0, 120.0);
+        aiPlanSetVariableFloat(main_base_defend_plan, cDefendPlanGatherDistance, 0, 8.0);
+        aiPlanSetVariableBool(main_base_defend_plan, cDefendPlanPatrol, 0, false);
+        aiPlanSetInitialPosition(main_base_defend_plan, main_base_location);
+        aiPlanSetUnitStance(main_base_defend_plan, cUnitStanceDefensive);
+        aiPlanSetVariableInt(main_base_defend_plan, cDefendPlanRefreshFrequency, 0, 1);
+        aiPlanSetVariableInt(main_base_defend_plan, cDefendPlanAttackTypeID, 0, cUnitTypeUnit);
+        aiPlanSetDesiredPriority(main_base_defend_plan, 100);
+        aiPlanSetActive(main_base_defend_plan, true);
+    }
+
+    for(i = 0; < kbUnitCount(cMyID, cUnitTypeLogicalTypeLandMilitary, cUnitStateAlive))
+    {
+        i_military_unit = findUnit1(cUnitTypeLogicalTypeLandMilitary, cMyID, i);
+        if (aiPlanGetType(kbUnitGetPlanID(i_military_unit)) == cPlanBuild)
+            continue;
+        if (aiPlanGetType(kbUnitGetPlanID(i_military_unit)) == cPlanDefend)
+            continue;
+        
+        i_military_unit_position = kbUnitGetPosition(i_military_unit);
+        if (kbCanPath2(i_military_unit_position, main_base_location, kbUnitGetProtoUnitID(i_military_unit)) == false)
+            continue;
+        
+        aiPlanDestroy(kbUnitGetPlanID(i_military_unit));
+        aiPlanAddUnit(main_base_defend_plan, i_military_unit);
+        number_defenders--;
+        if (number_defenders <= 0)
+            break;
     }
 }
 
