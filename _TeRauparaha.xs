@@ -10,6 +10,7 @@
     * Removed voyage affordability check.
     * Updated MonitorDefensiveOperations.
     * Enemies are now chosen randomly.
+    * Updated MonitorOffensiveOperations.
 
     Known issues:
     * Naval gameplay is not supported.
@@ -2364,189 +2365,237 @@ rule MonitorOffensiveOperations inactive minInterval 9
 {
     xsSetRuleMinIntervalSelf(5);
     
+    if (aiTreatyActive())
+        return;
     if (kbGetAge() <= cAge2)
+        return;
+    
+    if (kbBaseGetUnderAttack(cMyID, kbBaseGetMainID(cMyID)) == true)
         return;
     
     xsEnableRule("MonitorBallista");
     
-    // Based on ageekhere's routine
-    // See the Age of Empires III mod 'Improvement Mod' AI version v2.46
-    
-    static int current_target_player = -1;
-    static int last_attack_time = 0;
-    static int attack_plan = -1;
-    
-    int target_player = aiGetMostHatedPlayerID();
-    bool change_target = true;
-    
-    if ((current_target_player >= 1) && 
-        (kbHasPlayerLost(current_target_player) == false) && 
-        (kbUnitCount(current_target_player, cUnitTypeLogicalTypeTCBuildLimit, cUnitStateAlive) >= 1))
-    {
-        int enemy_base = kbBaseGetMainID(current_target_player);
-        vector enemy_base_loc = kbBaseGetLocation(current_target_player, enemy_base);
-        if (countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cMyID, enemy_base_loc, 100.0) >= 1)
-        {
-            target_player = current_target_player;
-            change_target = false;
-        }
-    }
-    
-    int lowest_score = 999999;
-    if ((change_target) && (not(kbIsFFA())))
-    {
-        for(player = 1; < cNumberPlayers)
-        {
-            if (kbGetPlayerTeam(cMyID) == kbGetPlayerTeam(player))
-                continue;
-            if (kbHasPlayerLost(player) == true)
-                continue;
-            if (kbUnitCount(player, cUnitTypeLogicalTypeTCBuildLimit, cUnitStateAlive) <= 0)
-                continue;
-            if (aiGetScore(player) < lowest_score)
-            {
-                target_player = player;
-                lowest_score = aiGetScore(player);
-            }
-        }
-    }
-    
-    aiSetMostHatedPlayerID(target_player);
-	current_target_player = target_player;
-    
     int main_base = kbBaseGetMainID(cMyID);
-    vector main_base_loc = kbBaseGetLocation(cMyID, main_base);
-    
-    int my_army_size = countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cMyID, main_base_loc, 100.0);
-    
-    if (my_army_size >= 20)
+    if (main_base == -1)
+        return;
+    vector main_base_location = kbBaseGetLocation(cMyID, main_base);
+
+    for(i = 0; < aiPlanGetNumber(cPlanAttack))
     {
-        vector target_player_loc = kbBaseGetLocation(target_player, kbBaseGetMainID(target_player));
-        if (countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, kbGetMapCenter(), 2000) >= 1)
-            // TODO -- WHY? Also, we should check for AreaGroup
-            target_player_loc = kbUnitGetPosition(findUnit1(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia));
-        planMoveAttack(target_player_loc, 40);
-    }
-    
-    /**********************************************************************************************
-    // TODO - switch between this scoring and focusing on the most hated player
-    // Based on Panmaster's ZenMaster AI
-    float score = 0.0;
-    float best_score = 0.0;
-    int target_unit = -1;
-    vector target_loc = cInvalidVector;
-    for(unit_index = 0 ; < 50)
-    {
-        // TODO -- AreaGroup
-        int unit = findUnitByLocation1(cUnitTypeHasBountyValue, cPlayerRelationEnemyNotGaia, main_base_loc, 800.0, unit_index);
-        if (unit == -1) break;
-        vector unit_loc = kbUnitGetPosition(unit);
-        score = countUnitsByLocation(cUnitTypeAbstractVillager, cPlayerRelationEnemyNotGaia, unit_loc, 40.0);
-        score = score + countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, unit_loc, 40.0);
-        score = score / xsVectorLength(unit_loc - main_base_loc);
-        if (score > best_score)
+        int i_attack_plan = aiPlanGetIDByIndex(cPlanAttack, -1, true, i);
+        
+        vector i_attack_plan_point = aiPlanGetVariableVector(i_attack_plan, cAttackPlanAttackPoint, 0);
+        if (i_attack_plan_point != cInvalidVector && 
+            countUnitsByLocation(cUnitTypeHasBountyValue, cPlayerRelationEnemyNotGaia, i_attack_plan_point, 40.0) >= 1)
         {
-            best_score = score;
-            target_unit = unit;
+            continue;
         }
-    }
-    target_loc = kbUnitGetPosition(target_unit);
-    ************************************************************************************************/
-    
-    if (aiPlanGetState(attack_plan) >= 0)
-    {
-        if (aiPlanGetNumberUnits(attack_plan, cUnitTypeLogicalTypeLandMilitary) == 0)
+
+        vector i_attack_plan_location = aiPlanGetLocation(i_attack_plan);
+        if (i_attack_plan_location != cInvalidVector)
         {
-            aiPlanDestroy(attack_plan);
-            if (xsGetTime() - last_attack_time >= 120000)
+            if (countUnitsByLocation(cUnitTypeHasBountyValue, cPlayerRelationEnemyNotGaia, i_attack_plan_location, 40.0) >= 1)
             {
-                attack_plan = aiPlanCreate("Attack", cPlanAttack);
-                aiPlanSetDesiredPriority(attack_plan, 70);
-                aiPlanSetUnitStance(attack_plan, cUnitStanceAggressive);
-                aiPlanSetAllowUnderAttackResponse(attack_plan, true);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanPlayerID, 0, target_player);
-                aiPlanSetVariableVector(attack_plan, cAttackPlanAttackPoint, 0, target_player_loc);
-                aiPlanSetVariableFloat(attack_plan, cAttackPlanAttackPointEngageRange, 0, 60.0);
-                aiPlanSetNumberVariableValues(attack_plan, cAttackPlanTargetTypeID, 3, true);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 0, cUnitTypeAbstractVillager);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 1, cUnitTypeLogicalTypeLandMilitary);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 2, cUnitTypeLogicalTypeBuildingsNotWalls);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanAttackRoutePattern, 0, cAttackPlanAttackRoutePatternBest);
-                aiPlanSetVariableBool(attack_plan, cAttackPlanMoveAttack, 0, true);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanRefreshFrequency, 0, 5);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanHandleDamageFrequency, 0, 10);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanBaseAttackMode, 0, cAttackPlanBaseAttackModeRandom);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanRetreatMode, 0, cAttackPlanRetreatModeNone);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanGatherWaitTime, 0, 0);
-                // TODO -- Leave some defenders at home
-                int num = kbUnitCount(cMyID, cUnitTypeLogicalTypeLandMilitary, cUnitStateAlive);
-                aiPlanAddUnitType(attack_plan, cUnitTypeLogicalTypeLandMilitary, num, num, num);
-                // aiPlanSetNoMoreUnits(attack_plan, true);
-                aiPlanSetActive(attack_plan, true);
-                last_attack_time = xsGetTime();
+                int t = 0;
+                for(j = 0; < countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cMyID, i_attack_plan_location, 40.0))
+                {
+                    if (findUnitByLocation1(cUnitTypeAbstractArtillery, cPlayerRelationEnemyNotGaia, i_attack_plan_location, 40.0, 0) == -1)
+                        break;
+                    
+                    int j_military_unit = findUnitByLocation2(cUnitTypeLogicalTypeLandMilitary, cMyID, i_attack_plan_location, 40.0, j);
+                    if (kbUnitIsType(j_military_unit, cUnitTypeAbstractInfantry) == true)
+                        continue;
+                    
+                    t++;
+                    int k = t / 7;
+                    aiTaskUnitWork(j_military_unit, 
+                                    findUnitByLocation3(cUnitTypeAbstractArtillery, cPlayerRelationEnemyNotGaia, i_attack_plan_location, 40.0, k));
+                }
+                
+                continue;
             }
+            
+            float highest_score = -1.0;
+            vector best_position = cInvalidVector;
+            int target_unit = -1;
+            int target_player = -1;
+            for(j = 0; < 50)
+            {
+                int j_enemy_unit = findUnitByLocation1(cUnitTypeHasBountyValue, cPlayerRelationEnemyNotGaia, i_attack_plan_location, 5000.0, j);
+                if (j_enemy_unit == -1)
+                    break;
+                
+                if (kbHasPlayerLost(kbUnitGetPlayerID(j_enemy_unit)) == true)
+                    continue;
+                
+                if (kbUnitGetMovementType(kbUnitGetProtoUnitID(j_enemy_unit)) != cMovementTypeLand)
+                    continue;
+                
+                vector j_enemy_unit_position = kbUnitGetPosition(j_enemy_unit);
+                float score = countUnitsByLocation(cUnitTypeAbstractVillager, cPlayerRelationEnemyNotGaia, j_enemy_unit_position, 40.0);
+                score = score + countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, j_enemy_unit_position, 40.0);
+                score = score + score;
+                score = score + countUnitsByLocation(cUnitTypeLogicalTypeBuildingsNotWalls, cPlayerRelationEnemyNotGaia, j_enemy_unit_position, 40.0);
+                score = score / xsVectorLength(i_attack_plan_location - j_enemy_unit_position);
+                
+                if (score > highest_score)
+                {
+                    highest_score = score;
+                    best_position = j_enemy_unit_position;
+                    target_unit = j_enemy_unit;
+                    target_player = kbUnitGetPlayerID(target_unit);
+                }
+            }
+
+            if (target_player == -1)
+            {
+                target_player = aiGetMostHatedPlayerID();
+                if (target_player <= 0 || kbHasPlayerLost(target_player) == true)
+                    return;
+                best_position = kbBaseGetLocation(target_player, kbBaseGetMainID(target_player));
+            }
+
+            if (best_position == cInvalidVector)
+                best_position = kbUnitGetPosition(findUnit1(cUnitTypeHasBountyValue, target_player));
+            
+            if (best_position == cInvalidVector)
+            {
+                aiPlanDestroy(i_attack_plan);
+                continue;
+            }
+
+            aiPlanSetVariableVector(i_attack_plan, cAttackPlanAttackPoint, 0, best_position);
+            aiPlanSetVariableInt(i_attack_plan, cAttackPlanPlayerID, 0, target_player);
+            aiPlanSetVariableInt(i_attack_plan, cAttackPlanSpecificTargetID,0, target_unit);
+            continue;
         }
-        
-        if (countUnitsByLocation(cUnitTypeUnit, cPlayerRelationEnemyNotGaia, aiPlanGetVariableVector(attack_plan, cAttackPlanAttackPoint, 0), 45.0) == 0)
-        {
-            aiPlanSetVariableInt(attack_plan, cAttackPlanPlayerID, 0, target_player);
-            aiPlanSetVariableVector(attack_plan, cAttackPlanAttackPoint, 0, target_player_loc);
-        }
-        
-        int target_unit = aiPlanGetVariableInt(attack_plan, cAttackPlanTargetID, 0);
-        if (kbUnitIsType(attack_plan, cUnitTypeAbstractWall) == true)
-        {
-            aiPlanSetVariableInt(attack_plan, cAttackPlanPlayerID, 0, target_player);
-            aiPlanSetVariableInt(attack_plan, cAttackPlanSpecificTargetID, 0, target_unit);
-        }
-        else if (target_unit == -1)
-        {
-            aiPlanSetVariableInt(attack_plan, cAttackPlanPlayerID, 0, target_player);
-            aiPlanSetVariableInt(attack_plan, cAttackPlanSpecificTargetID, 0, target_unit);
-        }
-        else if (kbUnitGetCurrentHitpoints(target_unit) < 0.1 )
-        {
-            aiPlanSetVariableInt(attack_plan, cAttackPlanPlayerID, 0, target_player);
-            aiPlanSetVariableInt(attack_plan,cAttackPlanSpecificTargetID, 0, target_unit);
-        }
-        else if (kbUnitIsType(target_unit, cUnitTypeHero) == true)
-        {
-            aiPlanSetVariableInt(attack_plan, cAttackPlanPlayerID, 0, target_player);
-            aiPlanSetVariableInt(attack_plan, cAttackPlanSpecificTargetID, 0, target_unit);
-        }
-        aiPlanSetNoMoreUnits(attack_plan, true);
     }
-    else
+
+    highest_score = -1.0;
+    best_position = cInvalidVector;
+    target_unit = -1;
+    target_player = -1;
+    for(i = 0; < 50)
     {
-        if(xsGetTime() - last_attack_time < 120000)
-            return;
+        int i_enemy_unit = findUnitByLocation1(cUnitTypeAll, cPlayerRelationEnemyNotGaia, main_base_location, 5000.0, i);
+        if (i_enemy_unit == -1)
+            break;
         
-        aiPlanDestroy(attack_plan);
-        attack_plan = aiPlanCreate("Attack", cPlanAttack);
-        aiPlanSetDesiredPriority(attack_plan, 70);
-        aiPlanSetUnitStance(attack_plan, cUnitStanceAggressive);
-        aiPlanSetAllowUnderAttackResponse(attack_plan, true);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanPlayerID, 0, target_player);
-        aiPlanSetVariableVector(attack_plan, cAttackPlanAttackPoint, 0, target_player_loc);
-        aiPlanSetVariableFloat(attack_plan, cAttackPlanAttackPointEngageRange, 0, 60.0);
-        aiPlanSetNumberVariableValues(attack_plan, cAttackPlanTargetTypeID, 3, true);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 0, cUnitTypeAbstractVillager);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 1, cUnitTypeLogicalTypeLandMilitary);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 2, cUnitTypeLogicalTypeBuildingsNotWalls);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanAttackRoutePattern, 0, cAttackPlanAttackRoutePatternBest);
-        aiPlanSetVariableBool(attack_plan, cAttackPlanMoveAttack, 0, true);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanRefreshFrequency, 0, 5);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanHandleDamageFrequency, 0, 10);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanBaseAttackMode, 0, cAttackPlanBaseAttackModeRandom);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanRetreatMode, 0, cAttackPlanRetreatModeNone);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanGatherWaitTime, 0, 0);
-        // TODO -- Leave some defenders at home
-        num = kbUnitCount(cMyID, cUnitTypeLogicalTypeLandMilitary, cUnitStateAlive);
-        aiPlanAddUnitType(attack_plan, cUnitTypeLogicalTypeLandMilitary, num, num, num);
-        // aiPlanSetNoMoreUnits(attack_plan, true);
-        aiPlanSetActive(attack_plan, true);
-        last_attack_time = xsGetTime();
+        if (kbHasPlayerLost(kbUnitGetPlayerID(i_enemy_unit)) == true)
+            continue;
+        if (kbUnitGetMovementType(kbUnitGetProtoUnitID(i_enemy_unit)) != cMovementTypeLand)
+            continue;
+        if (kbUnitIsType(i_enemy_unit, cUnitTypeAbstractResourceCrate) == true)
+            continue;
+        if (kbUnitIsType(i_enemy_unit, cUnitTypeAnimalPrey) == true)
+            continue;
+        if (kbUnitIsType(i_enemy_unit, cUnitTypeAbstractWall) == true)
+            continue;
+        
+        vector i_enemy_unit_position = kbUnitGetPosition(i_enemy_unit);
+        score = countUnitsByLocation(cUnitTypeAbstractVillager, cPlayerRelationEnemyNotGaia, i_enemy_unit_position, 40.0);
+        score = score + countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, i_enemy_unit_position, 40.0);
+        score = score + score;
+        score = score + countUnitsByLocation(cUnitTypeLogicalTypeBuildingsNotWalls, cPlayerRelationEnemyNotGaia, i_enemy_unit_position, 40.0);
+        score = score / xsVectorLength(main_base_location - i_enemy_unit_position);
+        
+        if (score > highest_score)
+        {
+            highest_score = score;
+            best_position = i_enemy_unit_position;
+            target_unit = i_enemy_unit;
+            target_player = kbUnitGetPlayerID(target_unit);
+        }
     }
+
+    if (target_player == -1)
+    {
+        target_player = aiGetMostHatedPlayerID();
+        if (target_player <= 0 || kbHasPlayerLost(target_player) == true)
+            return;
+        best_position = kbBaseGetLocation(target_player, kbBaseGetMainID(target_player));
+    }
+    
+    if (best_position == cInvalidVector)
+        best_position = kbUnitGetPosition(findUnit1(cUnitTypeHasBountyValue, target_player));
+    
+    int number_unassigned_units = 0;
+    for(i = 0; < kbUnitCount(cMyID, cUnitTypeLogicalTypeLandMilitary, cUnitStateAlive))
+    {
+        int i_military_unit = findUnit1(cUnitTypeLogicalTypeLandMilitary, cMyID, i);
+        if (kbUnitGetPlanID(i_military_unit) >= 0)
+            continue;
+        
+        vector i_military_unit_position = kbUnitGetPosition(i_military_unit);
+        if (kbCanPath2(i_military_unit_position, best_position, kbUnitGetProtoUnitID(i_military_unit)) == false)
+            continue;
+        
+        number_unassigned_units++;
+        // cUnitTypePolyStoneThrower counts as two units
+        if (kbUnitIsType(i_military_unit, cUnitTypePolyStoneThrower) == true)
+            number_unassigned_units++;
+    }
+
+    static int current_wave = 0;
+    
+    if (number_unassigned_units < 10 + 10 * kbGetAge())
+        return;
+    
+    current_wave++;
+
+    int attack_plan = aiPlanCreate("Attack Wave " + current_wave, cPlanAttack);
+    aiPlanSetDesiredPriority(attack_plan, 80);
+    aiPlanSetUnitStance(attack_plan, cUnitStanceAggressive);
+    aiPlanSetAllowUnderAttackResponse(attack_plan, true);
+    
+    // aiPlanSetInitialPosition(attack_plan, main_base_location);
+    // aiPlanSetVariableVector(attack_plan, cAttackPlanGatherPoint, 0, main_base_location);
+    // aiPlanSetVariableFloat(attack_plan, cAttackPlanGatherDistance, 0, 100.0);
+    // aiPlanSetVariableInt(attack_plan, cAttackPlanGatherWaitTime, 0, 0);
+    
+    aiPlanSetVariableInt(attack_plan, cAttackPlanPlayerID, 0, target_player);
+    
+    aiPlanSetVariableVector(attack_plan, cAttackPlanAttackPoint, 0, best_position);
+    aiPlanSetVariableFloat(attack_plan, cAttackPlanAttackPointEngageRange, 0, 60.0);
+    aiPlanSetVariableBool(attack_plan, cAttackPlanMoveAttack, 0, true);
+
+    aiPlanSetNumberVariableValues(attack_plan, cAttackPlanTargetTypeID, 3, true);
+    aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 0, cUnitTypeAbstractVillager);
+    aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 1, cUnitTypeLogicalTypeBuildingsNotWalls);
+    aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 2, cUnitTypeLogicalTypeLandMilitary);
+
+    aiPlanSetVariableInt(attack_plan, cAttackPlanAttackRoutePattern, 0, cAttackPlanAttackRoutePatternBest);
+    aiPlanSetVariableInt(attack_plan, cAttackPlanBaseAttackMode, 0, cAttackPlanBaseAttackModeRandom);
+    aiPlanSetVariableInt(attack_plan, cAttackPlanRetreatMode, 0, cAttackPlanRetreatModeNone);
+    
+    aiPlanSetVariableInt(attack_plan, cAttackPlanRefreshFrequency, 0, 5);
+    aiPlanSetVariableInt(attack_plan, cAttackPlanHandleDamageFrequency, 0, 5);
+
+    aiPlanAddUnitType(attack_plan, cUnitTypeLogicalTypeLandMilitary, 0, 0, number_unassigned_units);
+    
+    for(i = 0; < kbUnitCount(cMyID, cUnitTypeLogicalTypeLandMilitary, cUnitStateAlive))
+    {
+        i_military_unit = findUnit1(cUnitTypeLogicalTypeLandMilitary, cMyID, i);
+        
+        if (kbUnitIsType(i_military_unit, cUnitTypeHero) == true)
+            continue;
+        
+        if (kbUnitGetPlanID(i_military_unit) >= 0)
+            continue;
+        
+        i_military_unit_position = kbUnitGetPosition(i_military_unit);
+        
+        if (kbCanPath2(i_military_unit_position, best_position, kbUnitGetProtoUnitID(i_military_unit)) == false)
+            continue;
+        
+        aiPlanAddUnit(attack_plan, i_military_unit);
+    }
+
+    aiPlanSetNoMoreUnits(attack_plan, true);
+
+    aiPlanSetEventHandler(attack_plan, cPlanEventStateChange, "eWhenAttackPlanStateChanges");
+    
+    aiPlanSetActive(attack_plan, true);
 }
 
 
