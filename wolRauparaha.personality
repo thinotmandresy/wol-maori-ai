@@ -1,0 +1,13 @@
+<AI>
+   <version>2</version>
+   <script>_TeRauparaha</script>
+   <nameID>1001432</nameID>
+   <tooltipID>1001433</tooltipID>
+   <forcedciv>Maori</forcedciv>
+   <rushboom>0</rushboom>
+   <icon>WoL\ui\singleplayer\cpai_avatar_maori-xs</icon>
+   <chatset>huayna</chatset>
+   <playerNames>
+      <nameID>1001432<civ>Maori</civ></nameID>
+  </playerNames>
+</AI>
