@@ -6,6 +6,7 @@
     * The previous versioning system was stupid. I'm now using the same versioning system as the mod itself.
     * Fixed Imperial Age "this is a bug" chat spam.
     * Removed useless/inaccurate blockade chat.
+    * The resource forecasting math is now based on aiPlans.
 
     Known issues:
     * Naval gameplay is not supported.
@@ -19,7 +20,6 @@ include "_aiHeader.xs";
 include "_aiArrays.xs";
 include "_aiQueries.xs";
 include "_aiPlans.xs";
-include "_aiForecasts.xs";
 
 
 void main(void)
@@ -579,203 +579,192 @@ rule MonitorRansoms inactive minInterval 5 runImmediately
 
 rule MonitorGathererAllocation active minInterval 30 runImmediately group StartupMonitors
 {
-    clearForecasts();
-    
-    // TODO -- Review all these forecast items as well as the second argument of addTechToForecasts
-    
-    // TODO -- Calculate based on actual needs (the calcs in MonitorGathererTasking plus the calcs in MonitorResources)
-    const int kumara_gatherer_limit = 10;
-    int need = 1 + ((kbUnitCount(cMyID, cUnitTypeAbstractVillager, cUnitStateAlive) * 0.5) / kumara_gatherer_limit); // Enough for 50% of population
-    need = need - kbUnitCount(cMyID, cUnitTypeKumaraField, cUnitStateABQ);
-    if (gFarmingMode)
-        addItemToForecasts(cUnitTypeKumaraField, need);
-    need = kbGetBuildLimit(cMyID, cUnitTypeSandalwoodGrove) - kbUnitCount(cMyID, cUnitTypeSandalwoodGrove, cUnitStateABQ);
-    if (kbProtoUnitAvailable(cUnitTypeSandalwoodGrove))
-        addItemToForecasts(cUnitTypeSandalwoodGrove, need);
-    need = kbGetBuildLimit(cMyID, cUnitTypeMaoriPa) - kbUnitCount(cMyID, cUnitTypeMaoriPa, cUnitStateABQ);
-    addItemToForecasts(cUnitTypeMaoriPa, need);
-    need = kbGetBuildLimit(cMyID, cUnitTypeMarket) - kbUnitCount(cMyID, cUnitTypeMarket, cUnitStateABQ);
-    addItemToForecasts(cUnitTypeMarket, need);
-    
-    addItemToForecasts(cUnitTypePOLYvillager, 8);
-    
-    addTechToForecasts(cTechBigBountifulIslandsMaori, true);
-    addTechToForecasts(cTechWhanau);
-    addTechToForecasts(cTechKumaraStorage);
-    addTechToForecasts(cTechHapu);
-    addTechToForecasts(cTechHangi);
-    addTechToForecasts(cTechIwi);
-    addTechToForecasts(cTechBirdSnares);
-    addTechToForecasts(cTechStoneAdzes);
-    addTechToForecasts(cTechBasaltQuarry);
-    addTechToForecasts(cTechBarkCloth, true);
-    addTechToForecasts(cTechRatSnares, true);
-    addTechToForecasts(cTechEuropeanAxes, true);
-    addTechToForecasts(cTechPetroglyphs, true);
-    addTechToForecasts(cTechTattooing, true);
-    addTechToForecasts(cTechWoodCarving, true);
-    addTechToForecasts(cTechDryStoneConstruction, true);
-    addTechToForecasts(cTechTradeMission, true);
-    addTechToForecasts(cTechSandalwoodTrade, true);
-    addTechToForecasts(cTechWovenBaskets);
-    addTechToForecasts(cTechPohaKelpBags, true);
-    addTechToForecasts(cTechPallisades);
-    addTechToForecasts(cTechFightingPlatforms);
-    addTechToForecasts(cTechPakehaCannons);
-    
-    switch(kbGetAge())
-    {
-        case cAge3:
-        {
-            if (gAgingUp == false)
-                addItemToForecasts(cUnitTypePOLYVMChathamIslands4, 1);
-            need = kbGetBuildLimit(cMyID, cUnitTypePOLYTemple) - kbUnitCount(cMyID, cUnitTypePOLYTemple, cUnitStateABQ);
-            addItemToForecasts(cUnitTypePOLYTemple, need);
-            need = 2 - kbUnitCount(cMyID, cUnitTypePOLYTrainingGround, cUnitStateABQ);
-            addItemToForecasts(cUnitTypePOLYTrainingGround, need);
-            need = 1 - kbUnitCount(cMyID, cUnitTypePOLYSiegeWorkshop, cUnitStateABQ);
-            addItemToForecasts(cUnitTypePOLYSiegeWorkshop, need);
-            break;
-        }
-        case cAge4:
-        {
-            if (gAgingUp == false)
-                addItemToForecasts(cUnitTypePOLYVMNewSouthWales5, 1);
-            need = 3 - kbUnitCount(cMyID, cUnitTypePOLYTrainingGround, cUnitStateABQ);
-            addItemToForecasts(cUnitTypePOLYTrainingGround, need);
-            need = 2 - kbUnitCount(cMyID, cUnitTypePOLYSiegeWorkshop, cUnitStateABQ);
-            addItemToForecasts(cUnitTypePOLYSiegeWorkshop, need);
-            break;
-        }
-        case cAge5:
-        {
-            need = 4 - kbUnitCount(cMyID, cUnitTypePOLYTrainingGround, cUnitStateABQ);
-            addItemToForecasts(cUnitTypePOLYTrainingGround, need);
-            need = 3 - kbUnitCount(cMyID, cUnitTypePOLYSiegeWorkshop, cUnitStateABQ);
-            addItemToForecasts(cUnitTypePOLYSiegeWorkshop, need);
-            break;
-        }
-        default:
-        {
-            
-            break;
-        }
-    }
-    
-    switch(kbGetAge())
-    {
-        case cAge1:
-        {
-            clearForecasts();
-            addResourceToForecasts(cResourceFood, 1000.0);
-            if ((gAgingUp) && ((kbResourceGet(cResourceWood) < 700.0) || (kbResourceGet(cResourceGold) < 50.0)))
-            {
-                clearForecasts();
-                if (kbResourceGet(cResourceWood) < 700.0)
-                    addResourceToForecasts(cResourceWood, 1000.0);
-                if (kbResourceGet(cResourceGold) < 50.0)
-                    addResourceToForecasts(cResourceGold, 1000.0);
-            }
-            break;
-        }
-        case cAge2:
-        {
-            clearForecasts();
-            addResourceToForecasts(cResourceFood, 1000.0);
-            if (gAgingUp)
-            {
-                clearForecasts();
-                if (kbResourceGet(cResourceWood) < 700.0)
-                    addResourceToForecasts(cResourceWood, 1000.0);
-                if (kbResourceGet(cResourceGold) < 50.0)
-                    addResourceToForecasts(cResourceGold, 1000.0);
-            }
-            break;
-        }
-    }
-    
+    xsSetRuleMinIntervalSelf(10);
+
+    /* ===================================================================
+        1. Setting up for the allocation.
+    =================================================================== */
+
+    // Set the gatherer allocation to be controlled entirely by this script:
     aiSetResourceGathererPercentageWeight(cRGPScript, 1.0);
+    // Ignore all gatherer allocations calculated by the internal AI:
     aiSetResourceGathererPercentageWeight(cRGPCost, 0.0);
-    
-    float forecastWeight = 1.0;
-    float reactiveWeight = 0.0;
-    static int forecastValues = -1;
-    static int reactiveValues = -1;
-    static int gathererPercentages = -1;
-    
-    if (forecastValues < 0)
+    // Normalizes all of the resource gatherer percentages weights to 1.0.
+    aiNormalizeResourceGathererPercentageWeights();
+
+    // Get the amounts of resources we currently have.
+    float inventory_gold = kbResourceGet(cResourceGold);
+    float inventory_wood = kbResourceGet(cResourceWood);
+    float inventory_food = kbResourceGet(cResourceFood);
+    float inventory_total = inventory_gold + inventory_wood + inventory_food;
+    // Store the total as an integer value so we can use '==' comparison.
+    int int_inventory_total = inventory_total;
+
+    int i_plan = -1;
+    // Calculate the amounts of resources we're planning to spend.
+    float planned_gold = 0.0;
+    float planned_wood = 0.0;
+    float planned_food = 0.0;
+
+    for(i = 0; < aiPlanGetNumber())
     {
-        forecastValues = xsArrayCreateFloat(cNumResourceTypes, 0.0, "forecast oriented values");
-        reactiveValues = xsArrayCreateFloat(cNumResourceTypes, 0.0, "reactive values");
-        gathererPercentages = xsArrayCreateFloat(cNumResourceTypes, 0.0, "gatherer percentages");
-    }
-    
-    float totalForecast = 0.0;
-    float totalShortfall = 0.0;
-    float fcst = 0.0;
-    float shortfall = 0.0;
-    for (i=0; <cNumResourceTypes)
-    {
-        fcst = xsArrayGetFloat(gForecasts, i);
-        shortfall = fcst - kbResourceGet(i);
-        totalForecast = totalForecast + fcst;
-        if (shortfall > 0.0)
-            totalShortfall = totalShortfall + shortfall;
-    }
-    
-    if (totalForecast > 0)
-        reactiveWeight = totalShortfall / totalForecast;
-    else
-        reactiveWeight = 1.0;
-    forecastWeight = 1.0 - reactiveWeight;
-    if (totalShortfall > (0.3 * totalForecast))
-    {
-        reactiveWeight = reactiveWeight + (0.7 * forecastWeight);
-        forecastWeight = 1.0 - reactiveWeight;
-    }
-    
-    float scratch = 0.0;
-    for (i=0; <cNumResourceTypes)
-    {
-        fcst = xsArrayGetFloat(gForecasts, i);
-        shortfall = fcst - kbResourceGet(i);
-        xsArraySetFloat(forecastValues, i, fcst / totalForecast);
-        if ( shortfall > 0 )
-            xsArraySetFloat(reactiveValues, i, shortfall / totalShortfall);
-        else
-            xsArraySetFloat(reactiveValues, i, 0.0);
+        i_plan = aiPlanGetIDByIndex(-1, -1, true, i);
+        if (aiPlanGetState(i_plan) == cPlanStateResearch || aiPlanGetState(i_plan) == cPlanStateBuild)
+            continue;
         
-        scratch = xsArrayGetFloat(forecastValues, i) * forecastWeight;
-        scratch = scratch + (xsArrayGetFloat(reactiveValues, i) * reactiveWeight);
-        xsArraySetFloat(gathererPercentages, i, scratch);
+        if (aiPlanGetType(i_plan) == cPlanBuild && kbUnitIsType(aiPlanGetVariableInt(i_plan, cBuildPlanBuildUnitID, 0), cUnitTypeAbstractWagon))
+            continue;
+
+        switch(aiPlanGetType(i_plan))
+        {
+            case cPlanResearch:
+            {
+                planned_gold = planned_gold + kbTechCostPerResource(aiPlanGetVariableInt(i_plan, cResearchPlanTechID, 0), cResourceGold);
+                planned_wood = planned_wood + kbTechCostPerResource(aiPlanGetVariableInt(i_plan, cResearchPlanTechID, 0), cResourceWood);
+                planned_food = planned_food + kbTechCostPerResource(aiPlanGetVariableInt(i_plan, cResearchPlanTechID, 0), cResourceFood);
+                break;
+            }
+            case cPlanBuild:
+            {
+                planned_gold = planned_gold + kbUnitCostPerResource(aiPlanGetVariableInt(i_plan, cBuildPlanBuildingTypeID, 0), cResourceGold);
+                planned_wood = planned_wood + kbUnitCostPerResource(aiPlanGetVariableInt(i_plan, cBuildPlanBuildingTypeID, 0), cResourceWood);
+                planned_food = planned_food + kbUnitCostPerResource(aiPlanGetVariableInt(i_plan, cBuildPlanBuildingTypeID, 0), cResourceFood);
+                break;
+            }
+            case cPlanTrain:
+            {
+                int protounit_to_maintain = aiPlanGetVariableInt(i_plan, cTrainPlanUnitType, 0);
+                int current_count = kbUnitCount(cMyID, protounit_to_maintain, cUnitStateABQ);
+                int number_to_maintain = aiPlanGetVariableInt(i_plan, cTrainPlanNumberToMaintain, 0);
+                int shortfall = max(0, number_to_maintain - current_count);
+
+                if (kbProtoUnitIsType(cMyID, protounit_to_maintain, cUnitTypeAbstractVillager))
+                    shortfall = max(3, kbUnitCount(cMyID, cUnitTypeMaoriPa, cUnitStateAlive));
+                
+                if (kbProtoUnitIsType(cMyID, protounit_to_maintain, cUnitTypeLogicalTypeLandMilitary))
+                {
+                    shortfall = 6 + kbGetAge();
+                }
+                
+                planned_gold = planned_gold + kbUnitCostPerResource(protounit_to_maintain, cResourceGold) * shortfall;
+                planned_wood = planned_wood + kbUnitCostPerResource(protounit_to_maintain, cResourceWood) * shortfall;
+                planned_food = planned_food + kbUnitCostPerResource(protounit_to_maintain, cResourceFood) * shortfall;
+                break;
+            }
+        }
     }
-    
-    float totalPercentages = 0.0;
-    for(i=0; <cNumResourceTypes)
-        totalPercentages = totalPercentages + xsArrayGetFloat(gathererPercentages, i);
-    for(i=0; <cNumResourceTypes)
-        xsArraySetFloat(gathererPercentages, i, xsArrayGetFloat(gathererPercentages, i) / totalPercentages);
-    
-    // TODO -- Maybe move this to MonitorResources?
-    if (cRandomMapName == "WOLeasterisland")
+
+    float planned_total = planned_gold + planned_wood + planned_food;
+    // Store the total as an integer value so we can use '==' comparison.
+    int int_planned_total = planned_total;
+
+    // Calculate shortfalls (i.e. the amounts by which the inventories are behind/ahead of the planned expenditures)
+    float shortfall_gold = max(0.0, planned_gold - inventory_gold);
+    float shortfall_wood = max(0.0, planned_wood - inventory_wood);
+    float shortfall_food = max(0.0, planned_food - inventory_food);
+    float shortfall_total = shortfall_gold + shortfall_wood + shortfall_food;
+    // Store the total as an integer value so we can use '==' comparison.
+    int int_shortfall_total = shortfall_total;
+
+    float gatherer_percentage_gold = 0.34;
+    float gatherer_percentage_wood = 0.33;
+    float gatherer_percentage_food = 0.33;
+
+
+    /* ===================================================================
+        2. Preliminary gatherer allocation.
+    =================================================================== */
+
+    if (int_shortfall_total == 0)
     {
-        gNoMoreTrees = true;
-        xsEnableRule("MonitorMoai");
+        // Special case: we're not planning to spend resources OR we have enough resources for everything we're planning.
+
+        if (int_inventory_total == 0)
+        {
+            // If there's nothing in inventory, just distribute gatherers equally.
+            gatherer_percentage_gold = 0.34;
+            gatherer_percentage_wood = 0.33;
+            gatherer_percentage_food = 0.33;
+        }
+        else
+        {
+            // Otherwise, make resources catch up on each other.
+            gatherer_percentage_gold = 1.0 - inventory_gold / inventory_total;
+            gatherer_percentage_wood = 1.0 - inventory_wood / inventory_total;
+            gatherer_percentage_food = 1.0 - inventory_food / inventory_total;
+        }
+    }
+    else
+    {
+        // Normal case: we still need to gather resources.
+
+        // Gather the most needed resources.
+        // TODO -- We need to find a math that is smarter than this.
+        gatherer_percentage_gold = shortfall_gold / shortfall_total;
+        gatherer_percentage_wood = shortfall_wood / shortfall_total;
+        gatherer_percentage_food = shortfall_food / shortfall_total;
+    }
+
+
+    /* ===================================================================
+        3. Adjustments based on different situations.
+    =================================================================== */
+
+    // TODO -- Calculate or approximate the current gather rates and adjust allocations accordingly.
+
+    // If we're running out of trees, just disable wood gathering.
+    // TODO -- We can do a better approximation if we take into account all the zones covered by the rule 'GatherResources' instead of 
+    //         the main base only.
+    int main_base = kbBaseGetMainID(cMyID);
+    int planned_number_of_wood_gatherers = gatherer_percentage_wood * kbUnitCount(cMyID, cUnitTypeAbstractVillager, cUnitStateAlive);
+    float amount_of_valid_wood = kbGetAmountValidResources(main_base, cResourceWood, cAIResourceSubTypeEasy, 100.0);
+    float valid_wood_per_gatherer = amount_of_valid_wood / planned_number_of_wood_gatherers;
+    if (valid_wood_per_gatherer < 100.0 || gNoMoreTrees)
+        gatherer_percentage_wood = 0.0;
+    
+
+    /* ===================================================================
+        4. Overrides for special situations.
+    =================================================================== */
+
+    if (kbGetAge() <= cAge2)
+    {
+        // In Age1 and Age2, everyone goes full on food.
+        gatherer_percentage_gold = 0.0;
+        gatherer_percentage_wood = 0.0;
+        gatherer_percentage_food = 1.0;
+        
+        // Except if we're aging up and need to prepare enough resources for the next age.
+        if ((gAgingUp) && ((kbResourceGet(cResourceWood) < 700.0) || (kbResourceGet(cResourceGold) < 50.0)))
+        {
+            gatherer_percentage_gold = 0.0;
+            gatherer_percentage_wood = 0.5;
+            gatherer_percentage_food = 0.5;
+
+            if (kbResourceGet(cResourceWood) >= 700.0)
+            {
+                gatherer_percentage_gold = 1.0;
+                gatherer_percentage_wood = 0.0;
+                gatherer_percentage_food = 0.0;
+            }
+            if (kbResourceGet(cResourceGold) >= 50.0)
+            {
+                gatherer_percentage_gold = 0.0;
+                gatherer_percentage_wood = 1.0;
+                gatherer_percentage_food = 0.0;
+            }
+        }
     }
     
-    if (gNoMoreTrees)
-        xsArraySetFloat(gathererPercentages, cResourceWood, .0);
-    
-    totalPercentages = 0.0;
-    for(i=0; < cNumResourceTypes)
-        totalPercentages = totalPercentages + xsArrayGetFloat(gathererPercentages, i);
-    for(i=0; < cNumResourceTypes)
-        xsArraySetFloat(gathererPercentages, i, xsArrayGetFloat(gathererPercentages, i) / totalPercentages);
-    
-    for(i=0; < cNumResourceTypes)
-        aiSetResourceGathererPercentage(i, xsArrayGetFloat(gathererPercentages, i), false, cRGPScript);
-    
-    aiNormalizeResourceGathererPercentages(cRGPScript);
+    /* ===================================================================
+        5. Final gatherer allocation.
+    =================================================================== */
+
+    aiSetResourceGathererPercentage(cResourceGold, gatherer_percentage_gold);
+    aiSetResourceGathererPercentage(cResourceWood, gatherer_percentage_wood);
+    aiSetResourceGathererPercentage(cResourceFood, gatherer_percentage_food);
+    // Normalizes all of the resource gatherer percentages to 1.0.
+    aiNormalizeResourceGathererPercentages();
     
     xsEnableRule("MonitorGathererTasking");
     xsEnableRule("MonitorHerdables");
@@ -1527,7 +1516,7 @@ rule MonitorGathererTasking inactive minInterval 5 runImmediately
             num_unassigned = num_unassigned - 10;
         }
         if ((num_new_plans == 0) && (num_unassigned >= 1))
-            num_new_plans = 1; // TODO -- Forecasts
+            num_new_plans = 1;
         for(plan_index = 0 ; < num_new_plans)
         {
             if (kbBaseGetUnderAttack(cMyID, base) == true)
@@ -1930,7 +1919,6 @@ rule MonitorResources inactive minInterval 10
         queue++;
     }
     
-    // TODO -- Forecasts
     for(index = 0 ; < near_depletion - queue)
     {
         if (attacked)
