@@ -9,6 +9,7 @@
     * The resource forecasting math is now based on aiPlans.
     * Removed voyage affordability check.
     * Updated MonitorDefensiveOperations.
+    * Enemies are now chosen randomly.
 
     Known issues:
     * Naval gameplay is not supported.
@@ -2316,6 +2317,45 @@ rule MonitorDefensiveOperations inactive minInterval 10
         number_defenders--;
         if (number_defenders <= 0)
             break;
+    }
+}
+
+
+rule MonitorMostHatedPlayer active minInterval 1 runImmediately
+{
+    static int current_most_hated_enemy = -1;
+    static int alive_enemies = -1;
+    int number_alive_enemies = 0;
+
+    if (alive_enemies == -1)
+    {
+        alive_enemies = xsArrayCreateInt(cNumberPlayers, -1, "List of enemies that still haven't resigned.");
+        aiSetMostHatedPlayerID(0);
+    }
+
+    if (current_most_hated_enemy <= 0 || kbHasPlayerLost(current_most_hated_enemy) == true)
+    {
+        for(player = 1; < cNumberPlayers)
+        {
+            if (kbHasPlayerLost(player) == true)
+                continue;
+            
+            if (kbIsPlayerAlly(player) == true)
+                continue;
+            
+            xsArraySetInt(alive_enemies, number_alive_enemies, player);
+            number_alive_enemies++;
+        }
+
+        for(i = 0; < aiPlanGetNumber(cPlanAttack))
+        {
+            int i_attack_plan = aiPlanGetIDByIndex(cPlanAttack, -1, true, i);
+            if (aiPlanGetVariableInt(i_attack_plan, cAttackPlanPlayerID, 0) == current_most_hated_enemy)
+                aiPlanDestroy(i_attack_plan);
+        }
+
+        current_most_hated_enemy = xsArrayGetInt(alive_enemies, aiRandInt(number_alive_enemies));
+        aiSetMostHatedPlayerID(current_most_hated_enemy);
     }
 }
 
