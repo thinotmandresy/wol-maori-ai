@@ -1,11 +1,10 @@
 /******************************************************************************
-    Te Rauparaha AI -- Wars of Liberty v1.0.15f "The Compromise Hotfix"
+    Te Rauparaha AI v1.05.034 -- Wars of Liberty v1.0.15d "Anniversary Patch"
     by Thinot "AlistairJah" Mandresy
-    Last updated on October 1st, 2023
-    Changes from "Anniversary Patch":
-    * The previous versioning system was stupid. I'm now using the same versioning system as the mod itself.
-    * Fixed Imperial Age "this is a bug" chat spam.
-    * Removed useless/inaccurate blockade chat.
+    Last updated on February 21st, 2023
+    Changes from v1.05.33:
+    * Fixed a bug where the AI's armies would refuse to start an attack.
+    * Updated the math for allocating gatherers. Forecasts are no longer hardcoded.
 
     Known issues:
     * Naval gameplay is not supported.
@@ -19,7 +18,6 @@ include "_aiHeader.xs";
 include "_aiArrays.xs";
 include "_aiQueries.xs";
 include "_aiPlans.xs";
-include "_aiForecasts.xs";
 
 
 void main(void)
@@ -362,6 +360,14 @@ void HandlerShipmentReturn(int param = -1)
 {
     blockaded = true;
     xsDisableRule("MonitorSpareShipments");
+    for(player = 1 ; < cNumberPlayers)
+    {
+        if (player == cMyID) continue;
+        if (kbIsPlayerEnemy(player)) continue;
+        aiChat(player, "It looks like we've been blockaded lol");
+        if (aiRandInt(100) < 50)
+            aiChat(player, "I ordered the card "+kbGetTechName(aiHCDeckGetCardTechID(orderedCard))+" but it couldn't be shipped.");
+    }
 }
 
 
@@ -579,203 +585,192 @@ rule MonitorRansoms inactive minInterval 5 runImmediately
 
 rule MonitorGathererAllocation active minInterval 30 runImmediately group StartupMonitors
 {
-    clearForecasts();
-    
-    // TODO -- Review all these forecast items as well as the second argument of addTechToForecasts
-    
-    // TODO -- Calculate based on actual needs (the calcs in MonitorGathererTasking plus the calcs in MonitorResources)
-    const int kumara_gatherer_limit = 10;
-    int need = 1 + ((kbUnitCount(cMyID, cUnitTypeAbstractVillager, cUnitStateAlive) * 0.5) / kumara_gatherer_limit); // Enough for 50% of population
-    need = need - kbUnitCount(cMyID, cUnitTypeKumaraField, cUnitStateABQ);
-    if (gFarmingMode)
-        addItemToForecasts(cUnitTypeKumaraField, need);
-    need = kbGetBuildLimit(cMyID, cUnitTypeSandalwoodGrove) - kbUnitCount(cMyID, cUnitTypeSandalwoodGrove, cUnitStateABQ);
-    if (kbProtoUnitAvailable(cUnitTypeSandalwoodGrove))
-        addItemToForecasts(cUnitTypeSandalwoodGrove, need);
-    need = kbGetBuildLimit(cMyID, cUnitTypeMaoriPa) - kbUnitCount(cMyID, cUnitTypeMaoriPa, cUnitStateABQ);
-    addItemToForecasts(cUnitTypeMaoriPa, need);
-    need = kbGetBuildLimit(cMyID, cUnitTypeMarket) - kbUnitCount(cMyID, cUnitTypeMarket, cUnitStateABQ);
-    addItemToForecasts(cUnitTypeMarket, need);
-    
-    addItemToForecasts(cUnitTypePOLYvillager, 8);
-    
-    addTechToForecasts(cTechBigBountifulIslandsMaori, true);
-    addTechToForecasts(cTechWhanau);
-    addTechToForecasts(cTechKumaraStorage);
-    addTechToForecasts(cTechHapu);
-    addTechToForecasts(cTechHangi);
-    addTechToForecasts(cTechIwi);
-    addTechToForecasts(cTechBirdSnares);
-    addTechToForecasts(cTechStoneAdzes);
-    addTechToForecasts(cTechBasaltQuarry);
-    addTechToForecasts(cTechBarkCloth, true);
-    addTechToForecasts(cTechRatSnares, true);
-    addTechToForecasts(cTechEuropeanAxes, true);
-    addTechToForecasts(cTechPetroglyphs, true);
-    addTechToForecasts(cTechTattooing, true);
-    addTechToForecasts(cTechWoodCarving, true);
-    addTechToForecasts(cTechDryStoneConstruction, true);
-    addTechToForecasts(cTechTradeMission, true);
-    addTechToForecasts(cTechSandalwoodTrade, true);
-    addTechToForecasts(cTechWovenBaskets);
-    addTechToForecasts(cTechPohaKelpBags, true);
-    addTechToForecasts(cTechPallisades);
-    addTechToForecasts(cTechFightingPlatforms);
-    addTechToForecasts(cTechPakehaCannons);
-    
-    switch(kbGetAge())
-    {
-        case cAge3:
-        {
-            if (gAgingUp == false)
-                addItemToForecasts(cUnitTypePOLYVMChathamIslands4, 1);
-            need = kbGetBuildLimit(cMyID, cUnitTypePOLYTemple) - kbUnitCount(cMyID, cUnitTypePOLYTemple, cUnitStateABQ);
-            addItemToForecasts(cUnitTypePOLYTemple, need);
-            need = 2 - kbUnitCount(cMyID, cUnitTypePOLYTrainingGround, cUnitStateABQ);
-            addItemToForecasts(cUnitTypePOLYTrainingGround, need);
-            need = 1 - kbUnitCount(cMyID, cUnitTypePOLYSiegeWorkshop, cUnitStateABQ);
-            addItemToForecasts(cUnitTypePOLYSiegeWorkshop, need);
-            break;
-        }
-        case cAge4:
-        {
-            if (gAgingUp == false)
-                addItemToForecasts(cUnitTypePOLYVMNewSouthWales5, 1);
-            need = 3 - kbUnitCount(cMyID, cUnitTypePOLYTrainingGround, cUnitStateABQ);
-            addItemToForecasts(cUnitTypePOLYTrainingGround, need);
-            need = 2 - kbUnitCount(cMyID, cUnitTypePOLYSiegeWorkshop, cUnitStateABQ);
-            addItemToForecasts(cUnitTypePOLYSiegeWorkshop, need);
-            break;
-        }
-        case cAge5:
-        {
-            need = 4 - kbUnitCount(cMyID, cUnitTypePOLYTrainingGround, cUnitStateABQ);
-            addItemToForecasts(cUnitTypePOLYTrainingGround, need);
-            need = 3 - kbUnitCount(cMyID, cUnitTypePOLYSiegeWorkshop, cUnitStateABQ);
-            addItemToForecasts(cUnitTypePOLYSiegeWorkshop, need);
-            break;
-        }
-        default:
-        {
-            
-            break;
-        }
-    }
-    
-    switch(kbGetAge())
-    {
-        case cAge1:
-        {
-            clearForecasts();
-            addResourceToForecasts(cResourceFood, 1000.0);
-            if ((gAgingUp) && ((kbResourceGet(cResourceWood) < 700.0) || (kbResourceGet(cResourceGold) < 50.0)))
-            {
-                clearForecasts();
-                if (kbResourceGet(cResourceWood) < 700.0)
-                    addResourceToForecasts(cResourceWood, 1000.0);
-                if (kbResourceGet(cResourceGold) < 50.0)
-                    addResourceToForecasts(cResourceGold, 1000.0);
-            }
-            break;
-        }
-        case cAge2:
-        {
-            clearForecasts();
-            addResourceToForecasts(cResourceFood, 1000.0);
-            if (gAgingUp)
-            {
-                clearForecasts();
-                if (kbResourceGet(cResourceWood) < 700.0)
-                    addResourceToForecasts(cResourceWood, 1000.0);
-                if (kbResourceGet(cResourceGold) < 50.0)
-                    addResourceToForecasts(cResourceGold, 1000.0);
-            }
-            break;
-        }
-    }
-    
+    xsSetRuleMinIntervalSelf(10);
+
+    /* ===================================================================
+        1. Setting up for the allocation.
+    =================================================================== */
+
+    // Set the gatherer allocation to be controlled entirely by this script:
     aiSetResourceGathererPercentageWeight(cRGPScript, 1.0);
+    // Ignore all gatherer allocations calculated by the internal AI:
     aiSetResourceGathererPercentageWeight(cRGPCost, 0.0);
-    
-    float forecastWeight = 1.0;
-    float reactiveWeight = 0.0;
-    static int forecastValues = -1;
-    static int reactiveValues = -1;
-    static int gathererPercentages = -1;
-    
-    if (forecastValues < 0)
+    // Normalizes all of the resource gatherer percentages weights to 1.0.
+    aiNormalizeResourceGathererPercentageWeights();
+
+    // Get the amounts of resources we currently have.
+    float inventory_gold = kbResourceGet(cResourceGold);
+    float inventory_wood = kbResourceGet(cResourceWood);
+    float inventory_food = kbResourceGet(cResourceFood);
+    float inventory_total = inventory_gold + inventory_wood + inventory_food;
+    // Store the total as an integer value so we can use '==' comparison.
+    int int_inventory_total = inventory_total;
+
+    int i_plan = -1;
+    // Calculate the amounts of resources we're planning to spend.
+    float planned_gold = 0.0;
+    float planned_wood = 0.0;
+    float planned_food = 0.0;
+
+    for(i = 0; < aiPlanGetNumber())
     {
-        forecastValues = xsArrayCreateFloat(cNumResourceTypes, 0.0, "forecast oriented values");
-        reactiveValues = xsArrayCreateFloat(cNumResourceTypes, 0.0, "reactive values");
-        gathererPercentages = xsArrayCreateFloat(cNumResourceTypes, 0.0, "gatherer percentages");
-    }
-    
-    float totalForecast = 0.0;
-    float totalShortfall = 0.0;
-    float fcst = 0.0;
-    float shortfall = 0.0;
-    for (i=0; <cNumResourceTypes)
-    {
-        fcst = xsArrayGetFloat(gForecasts, i);
-        shortfall = fcst - kbResourceGet(i);
-        totalForecast = totalForecast + fcst;
-        if (shortfall > 0.0)
-            totalShortfall = totalShortfall + shortfall;
-    }
-    
-    if (totalForecast > 0)
-        reactiveWeight = totalShortfall / totalForecast;
-    else
-        reactiveWeight = 1.0;
-    forecastWeight = 1.0 - reactiveWeight;
-    if (totalShortfall > (0.3 * totalForecast))
-    {
-        reactiveWeight = reactiveWeight + (0.7 * forecastWeight);
-        forecastWeight = 1.0 - reactiveWeight;
-    }
-    
-    float scratch = 0.0;
-    for (i=0; <cNumResourceTypes)
-    {
-        fcst = xsArrayGetFloat(gForecasts, i);
-        shortfall = fcst - kbResourceGet(i);
-        xsArraySetFloat(forecastValues, i, fcst / totalForecast);
-        if ( shortfall > 0 )
-            xsArraySetFloat(reactiveValues, i, shortfall / totalShortfall);
-        else
-            xsArraySetFloat(reactiveValues, i, 0.0);
+        i_plan = aiPlanGetIDByIndex(-1, -1, true, i);
+        if (aiPlanGetState(i_plan) == cPlanStateResearch || aiPlanGetState(i_plan) == cPlanStateBuild)
+            continue;
         
-        scratch = xsArrayGetFloat(forecastValues, i) * forecastWeight;
-        scratch = scratch + (xsArrayGetFloat(reactiveValues, i) * reactiveWeight);
-        xsArraySetFloat(gathererPercentages, i, scratch);
+        if (aiPlanGetType(i_plan) == cPlanBuild && kbUnitIsType(aiPlanGetVariableInt(i_plan, cBuildPlanBuildUnitID, 0), cUnitTypeAbstractWagon))
+            continue;
+
+        switch(aiPlanGetType(i_plan))
+        {
+            case cPlanResearch:
+            {
+                planned_gold = planned_gold + kbTechCostPerResource(aiPlanGetVariableInt(i_plan, cResearchPlanTechID, 0), cResourceGold);
+                planned_wood = planned_wood + kbTechCostPerResource(aiPlanGetVariableInt(i_plan, cResearchPlanTechID, 0), cResourceWood);
+                planned_food = planned_food + kbTechCostPerResource(aiPlanGetVariableInt(i_plan, cResearchPlanTechID, 0), cResourceFood);
+                break;
+            }
+            case cPlanBuild:
+            {
+                planned_gold = planned_gold + kbUnitCostPerResource(aiPlanGetVariableInt(i_plan, cBuildPlanBuildingTypeID, 0), cResourceGold);
+                planned_wood = planned_wood + kbUnitCostPerResource(aiPlanGetVariableInt(i_plan, cBuildPlanBuildingTypeID, 0), cResourceWood);
+                planned_food = planned_food + kbUnitCostPerResource(aiPlanGetVariableInt(i_plan, cBuildPlanBuildingTypeID, 0), cResourceFood);
+                break;
+            }
+            case cPlanTrain:
+            {
+                int protounit_to_maintain = aiPlanGetVariableInt(i_plan, cTrainPlanUnitType, 0);
+                int current_count = kbUnitCount(cMyID, protounit_to_maintain, cUnitStateABQ);
+                int number_to_maintain = aiPlanGetVariableInt(i_plan, cTrainPlanNumberToMaintain, 0);
+                int shortfall = max(0, number_to_maintain - current_count);
+
+                if (kbProtoUnitIsType(cMyID, protounit_to_maintain, cUnitTypeAbstractVillager))
+                    shortfall = max(3, kbUnitCount(cMyID, cUnitTypeMaoriPa, cUnitStateAlive));
+                
+                if (kbProtoUnitIsType(cMyID, protounit_to_maintain, cUnitTypeLogicalTypeLandMilitary))
+                {
+                    shortfall = 6 + kbGetAge();
+                }
+                
+                planned_gold = planned_gold + kbUnitCostPerResource(protounit_to_maintain, cResourceGold) * shortfall;
+                planned_wood = planned_wood + kbUnitCostPerResource(protounit_to_maintain, cResourceWood) * shortfall;
+                planned_food = planned_food + kbUnitCostPerResource(protounit_to_maintain, cResourceFood) * shortfall;
+                break;
+            }
+        }
     }
-    
-    float totalPercentages = 0.0;
-    for(i=0; <cNumResourceTypes)
-        totalPercentages = totalPercentages + xsArrayGetFloat(gathererPercentages, i);
-    for(i=0; <cNumResourceTypes)
-        xsArraySetFloat(gathererPercentages, i, xsArrayGetFloat(gathererPercentages, i) / totalPercentages);
-    
-    // TODO -- Maybe move this to MonitorResources?
-    if (cRandomMapName == "WOLeasterisland")
+
+    float planned_total = planned_gold + planned_wood + planned_food;
+    // Store the total as an integer value so we can use '==' comparison.
+    int int_planned_total = planned_total;
+
+    // Calculate shortfalls (i.e. the amounts by which the inventories are behind/ahead of the planned expenditures)
+    float shortfall_gold = max(0.0, planned_gold - inventory_gold);
+    float shortfall_wood = max(0.0, planned_wood - inventory_wood);
+    float shortfall_food = max(0.0, planned_food - inventory_food);
+    float shortfall_total = shortfall_gold + shortfall_wood + shortfall_food;
+    // Store the total as an integer value so we can use '==' comparison.
+    int int_shortfall_total = shortfall_total;
+
+    float gatherer_percentage_gold = 0.34;
+    float gatherer_percentage_wood = 0.33;
+    float gatherer_percentage_food = 0.33;
+
+
+    /* ===================================================================
+        2. Preliminary gatherer allocation.
+    =================================================================== */
+
+    if (int_shortfall_total == 0)
     {
-        gNoMoreTrees = true;
-        xsEnableRule("MonitorMoai");
+        // Special case: we're not planning to spend resources OR we have enough resources for everything we're planning.
+
+        if (int_inventory_total == 0)
+        {
+            // If there's nothing in inventory, just distribute gatherers equally.
+            gatherer_percentage_gold = 0.34;
+            gatherer_percentage_wood = 0.33;
+            gatherer_percentage_food = 0.33;
+        }
+        else
+        {
+            // Otherwise, make resources catch up on each other.
+            gatherer_percentage_gold = 1.0 - inventory_gold / inventory_total;
+            gatherer_percentage_wood = 1.0 - inventory_wood / inventory_total;
+            gatherer_percentage_food = 1.0 - inventory_food / inventory_total;
+        }
+    }
+    else
+    {
+        // Normal case: we still need to gather resources.
+
+        // Gather the most needed resources.
+        // TODO -- We need to find a math that is smarter than this.
+        gatherer_percentage_gold = shortfall_gold / shortfall_total;
+        gatherer_percentage_wood = shortfall_wood / shortfall_total;
+        gatherer_percentage_food = shortfall_food / shortfall_total;
+    }
+
+
+    /* ===================================================================
+        3. Adjustments based on different situations.
+    =================================================================== */
+
+    // TODO -- Calculate or approximate the current gather rates and adjust allocations accordingly.
+
+    // If we're running out of trees, just disable wood gathering.
+    // TODO -- We can do a better approximation if we take into account all the zones covered by the rule 'GatherResources' instead of 
+    //         the main base only.
+    int main_base = kbBaseGetMainID(cMyID);
+    int planned_number_of_wood_gatherers = gatherer_percentage_wood * kbUnitCount(cMyID, cUnitTypeAbstractVillager, cUnitStateAlive);
+    float amount_of_valid_wood = kbGetAmountValidResources(main_base, cResourceWood, cAIResourceSubTypeEasy, 100.0);
+    float valid_wood_per_gatherer = amount_of_valid_wood / planned_number_of_wood_gatherers;
+    if (valid_wood_per_gatherer < 100.0 || gNoMoreTrees)
+        gatherer_percentage_wood = 0.0;
+    
+
+    /* ===================================================================
+        4. Overrides for special situations.
+    =================================================================== */
+
+    if (kbGetAge() <= cAge2)
+    {
+        // In Age1 and Age2, everyone goes full on food.
+        gatherer_percentage_gold = 0.0;
+        gatherer_percentage_wood = 0.0;
+        gatherer_percentage_food = 1.0;
+        
+        // Except if we're aging up and need to prepare enough resources for the next age.
+        if ((gAgingUp) && ((kbResourceGet(cResourceWood) < 700.0) || (kbResourceGet(cResourceGold) < 50.0)))
+        {
+            gatherer_percentage_gold = 0.0;
+            gatherer_percentage_wood = 0.5;
+            gatherer_percentage_food = 0.5;
+
+            if (kbResourceGet(cResourceWood) >= 700.0)
+            {
+                gatherer_percentage_gold = 1.0;
+                gatherer_percentage_wood = 0.0;
+                gatherer_percentage_food = 0.0;
+            }
+            if (kbResourceGet(cResourceGold) >= 50.0)
+            {
+                gatherer_percentage_gold = 0.0;
+                gatherer_percentage_wood = 1.0;
+                gatherer_percentage_food = 0.0;
+            }
+        }
     }
     
-    if (gNoMoreTrees)
-        xsArraySetFloat(gathererPercentages, cResourceWood, .0);
-    
-    totalPercentages = 0.0;
-    for(i=0; < cNumResourceTypes)
-        totalPercentages = totalPercentages + xsArrayGetFloat(gathererPercentages, i);
-    for(i=0; < cNumResourceTypes)
-        xsArraySetFloat(gathererPercentages, i, xsArrayGetFloat(gathererPercentages, i) / totalPercentages);
-    
-    for(i=0; < cNumResourceTypes)
-        aiSetResourceGathererPercentage(i, xsArrayGetFloat(gathererPercentages, i), false, cRGPScript);
-    
-    aiNormalizeResourceGathererPercentages(cRGPScript);
+    /* ===================================================================
+        5. Final gatherer allocation.
+    =================================================================== */
+
+    aiSetResourceGathererPercentage(cResourceGold, gatherer_percentage_gold);
+    aiSetResourceGathererPercentage(cResourceWood, gatherer_percentage_wood);
+    aiSetResourceGathererPercentage(cResourceFood, gatherer_percentage_food);
+    // Normalizes all of the resource gatherer percentages to 1.0.
+    aiNormalizeResourceGathererPercentages();
     
     xsEnableRule("MonitorGathererTasking");
     xsEnableRule("MonitorHerdables");
@@ -1527,7 +1522,7 @@ rule MonitorGathererTasking inactive minInterval 5 runImmediately
             num_unassigned = num_unassigned - 10;
         }
         if ((num_new_plans == 0) && (num_unassigned >= 1))
-            num_new_plans = 1; // TODO -- Forecasts
+            num_new_plans = 1;
         for(plan_index = 0 ; < num_new_plans)
         {
             if (kbBaseGetUnderAttack(cMyID, base) == true)
@@ -1930,7 +1925,6 @@ rule MonitorResources inactive minInterval 10
         queue++;
     }
     
-    // TODO -- Forecasts
     for(index = 0 ; < near_depletion - queue)
     {
         if (attacked)
@@ -2039,12 +2033,6 @@ rule MonitorVoyages active minInterval 5 runImmediately group StartupMonitors
     if (age == -1)
         age = kbGetAge();
     
-    if (age >= cAge5)
-    {
-        xsDisableSelf();
-        return;
-    }
-    
     static int destination = -1;
     static string destination_name = "BUG";
     int rangatira = findUnit1(cUnitTypeRangatira);
@@ -2062,15 +2050,13 @@ rule MonitorVoyages active minInterval 5 runImmediately group StartupMonitors
     if (aiPlanGetState(plan) == -1)
     {
         aiPlanDestroy(plan);
-        if (kbCanAffordUnit(destination, cRootEscrowID))
-        {
-            plan = planBuild(destination, rangatira_loc, 80.0, rangatira_loc, 80.0);
-            aiPlanSetVariableInt(plan, cBuildPlanBuildUnitID, 0, rangatira);
-            aiPlanAddUnitType(plan, cUnitTypeRangatira, 0, 0, 1);
-            aiPlanAddUnit(plan, rangatira);
-            aiPlanSetEventHandler(plan, cPlanEventStateChange, "HandlerVoyageState");
-            aiPlanSetActive(plan, true);
-        }
+
+        plan = planBuild(destination, rangatira_loc, 80.0, rangatira_loc, 80.0);
+        aiPlanSetVariableInt(plan, cBuildPlanBuildUnitID, 0, rangatira);
+        aiPlanAddUnitType(plan, cUnitTypeRangatira, 0, 0, 1);
+        aiPlanAddUnit(plan, rangatira);
+        aiPlanSetEventHandler(plan, cPlanEventStateChange, "HandlerVoyageState");
+        aiPlanSetActive(plan, true);
     }
     
     gAgingUp = (kbUnitCount(cMyID, cUnitTypeAbstractWonder, cUnitStateBuilding) >= 1);
@@ -2261,103 +2247,115 @@ rule MonitorSettlement inactive minInterval 5 runImmediately
 }
 
 
-rule MonitorDefensiveOperations inactive minInterval 7
+rule MonitorDefensiveOperations inactive minInterval 10
 {
-    xsSetRuleMinIntervalSelf(5);
-    
-    vector gather_point = kbBaseGetFrontVector(cMyID, gMainBase);
-    if (gather_point == cInvalidVector)
-        gather_point = gMainBaseLoc;
-    
-    if (aiPlanGetState(gMainBaseDefensePlan) == -1)
+    // Bring back all unassigned military units to the main base
+    int main_base = kbBaseGetMainID(cMyID);
+    vector main_base_military_gather_point = kbBaseGetMilitaryGatherPoint(cMyID, main_base);
+
+    for(i = 0; < kbUnitCount(cMyID, cUnitTypeLogicalTypeLandMilitary, cUnitStateAlive))
     {
-        aiPlanDestroy(gMainBaseDefensePlan);
-        gMainBaseDefensePlan = planMoveAttack(gather_point, 10);
+        int i_military_unit = findUnit1(cUnitTypeLogicalTypeLandMilitary, cMyID, i);
+        if (kbUnitGetPlanID(i_military_unit) >= 0)
+            continue;
+        
+        vector i_military_unit_position = kbUnitGetPosition(i_military_unit);
+        if (kbUnitGetBaseID(i_military_unit) == kbBaseGetMainID(cMyID))
+            continue;
+        if (kbCanPath2(i_military_unit_position, main_base_military_gather_point, kbUnitGetProtoUnitID(i_military_unit)) == false)
+            continue;
+        
+        aiTaskUnitMove(i_military_unit, main_base_military_gather_point);
     }
     
-    aiPlanSetVariableVector(gMainBaseDefensePlan, cDefendPlanDefendPoint, 0, gather_point);
-    
-    if (kbBaseGetUnderAttack(cMyID, gMainBase))
+    static int main_base_defend_plan = -1;
+    vector main_base_location = kbBaseGetLocation(cMyID, main_base);
+
+    int number_attackers = countUnitsByLocation(cUnitTypeCountsTowardMilitaryScore, cPlayerRelationEnemyNotGaia, main_base_location, 70.0);
+    if (number_attackers <= 2)
     {
-        aiPlanSetDesiredPriority(gMainBaseDefensePlan, 80); // TODO -- Review this value. Esp. after MonitorOffensiveOperations
-        int num_areagroup_mil = countUnitsByAreaGroup(cUnitTypeLogicalTypeLandMilitary, cMyID, kbAreaGroupGetIDByPosition(gMainBaseLoc));
-        int num_assailant = countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, gMainBaseLoc, gMainBaseRadius);
-        int num_allies = countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationAlly, gMainBaseLoc, gMainBaseRadius);
-        int diff = num_allies - num_assailant;
-        int num_reinforcements = 0;
-        if (diff <= 0)
-            num_reinforcements = abs(diff) + 10;
-        int remaining_assignable = num_areagroup_mil - num_reinforcements;
-        for(unit_index = 0 ; < num_areagroup_mil)
-        {
-            int assign_unit = findUnitByAreaGroup(cUnitTypeLogicalTypeLandMilitary, cMyID, kbAreaGroupGetIDByPosition(gMainBaseLoc), unit_index);
-            if (kbUnitIsType(assign_unit, cUnitTypeHero) == true)
-                continue;
-            if (kbUnitGetPlanID(assign_unit) == gMainBaseDefensePlan)
-            {
-                num_reinforcements--;
-                continue;
-            }
-            aiPlanAddUnit(gMainBaseDefensePlan, assign_unit);
-            num_reinforcements--;
-        }
-    }
-    
-    if (not(kbBaseGetUnderAttack(cMyID, gMainBase)))
-        aiPlanSetDesiredPriority(gMainBaseDefensePlan, 10);
-    
-    if (remaining_assignable <= 0)
-        return;
-    
-    int highest_number = 0;
-    int most_endangered = -1;
-    int player_to_help = -1;
-    for(player = 1 ; < cNumberPlayers)
-    {
-        if (kbHasPlayerLost(player) == true)
-            continue;
-        if (kbGetPlayerTeam(player) != kbGetPlayerTeam(cMyID))
-            continue;
-        int player_base = kbBaseGetMainID(player);
-        vector player_base_loc = kbBaseGetLocation(cMyID, player_base);
-        if (kbAreaGroupGetIDByPosition(player_base_loc) != kbAreaGroupGetIDByPosition(gMainBaseLoc))
-            continue;
-        int number = countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, player_base_loc, 80.0);
-        number = number - countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationAlly, player_base_loc, 80.0);
-        if (number <= 5)
-            continue;
-        if (highest_number < number)
-        {
-            highest_number = number;
-            most_endangered = player_base;
-            player_to_help = player;
-        }
-    }
-    
-    static int help_plan = -1;
-    
-    if (highest_number <= 5)
-    {
-        aiPlanDestroy(help_plan);
+        aiPlanDestroy(main_base_defend_plan);
+        main_base_defend_plan = -1;
         return;
     }
     
-    if (aiPlanGetState(help_plan) == -1)
+    int number_defenders = max(10, number_attackers + 10);
+
+    if (main_base_defend_plan == -1)
     {
-        aiPlanDestroy(help_plan);
-        help_plan = planMoveAttack(kbBaseGetLocation(player_to_help, most_endangered));
-        for(unit_index = 0 ; < num_areagroup_mil)
+        main_base_defend_plan = aiPlanCreate("Defend Main Base", cPlanDefend);
+        aiPlanAddUnitType(main_base_defend_plan, cUnitTypeLogicalTypeLandMilitary , 0, 0, 1);
+        aiPlanSetVariableVector(main_base_defend_plan, cDefendPlanDefendPoint, 0, main_base_location);
+        aiPlanSetVariableFloat(main_base_defend_plan, cDefendPlanEngageRange, 0, 120.0);
+        aiPlanSetVariableFloat(main_base_defend_plan, cDefendPlanGatherDistance, 0, 8.0);
+        aiPlanSetVariableBool(main_base_defend_plan, cDefendPlanPatrol, 0, false);
+        aiPlanSetInitialPosition(main_base_defend_plan, main_base_location);
+        aiPlanSetUnitStance(main_base_defend_plan, cUnitStanceDefensive);
+        aiPlanSetVariableInt(main_base_defend_plan, cDefendPlanRefreshFrequency, 0, 1);
+        aiPlanSetVariableInt(main_base_defend_plan, cDefendPlanAttackTypeID, 0, cUnitTypeUnit);
+        aiPlanSetDesiredPriority(main_base_defend_plan, 100);
+        aiPlanSetActive(main_base_defend_plan, true);
+    }
+
+    for(i = 0; < kbUnitCount(cMyID, cUnitTypeLogicalTypeLandMilitary, cUnitStateAlive))
+    {
+        i_military_unit = findUnit1(cUnitTypeLogicalTypeLandMilitary, cMyID, i);
+        if (aiPlanGetType(kbUnitGetPlanID(i_military_unit)) == cPlanBuild)
+            continue;
+        if (aiPlanGetType(kbUnitGetPlanID(i_military_unit)) == cPlanDefend)
+            continue;
+        
+        i_military_unit_position = kbUnitGetPosition(i_military_unit);
+        if (kbCanPath2(i_military_unit_position, main_base_location, kbUnitGetProtoUnitID(i_military_unit)) == false)
+            continue;
+        
+        aiPlanDestroy(kbUnitGetPlanID(i_military_unit));
+        aiPlanAddUnit(main_base_defend_plan, i_military_unit);
+        number_defenders--;
+        if (number_defenders <= 0)
+            break;
+    }
+}
+
+
+rule MonitorMostHatedPlayer
+active
+minInterval 1
+runImmediately
+{
+    static int current_most_hated_enemy = -1;
+    static int alive_enemies = -1;
+    int number_alive_enemies = 0;
+
+    if (alive_enemies == -1)
+    {
+        alive_enemies = xsArrayCreateInt(cNumberPlayers, -1, "List of enemies that still haven't resigned.");
+        aiSetMostHatedPlayerID(0);
+    }
+
+    if (current_most_hated_enemy <= 0 || kbHasPlayerLost(current_most_hated_enemy) == true)
+    {
+        for(player = 1; < cNumberPlayers)
         {
-            if (remaining_assignable <= 0)
-                break;
-            assign_unit = findUnitByAreaGroup(cUnitTypeLogicalTypeLandMilitary, cMyID, kbAreaGroupGetIDByPosition(gMainBaseLoc));
-            if (kbUnitIsType(assign_unit, cUnitTypeHero) == true)
+            if (kbHasPlayerLost(player) == true)
                 continue;
-            if (aiPlanGetDesiredPriority(kbUnitGetPlanID(assign_unit)) > aiPlanGetDesiredPriority(help_plan))
+            
+            if (kbIsPlayerAlly(player) == true)
                 continue;
-            aiPlanAddUnit(help_plan, assign_unit);
-            remaining_assignable--;
+            
+            xsArraySetInt(alive_enemies, number_alive_enemies, player);
+            number_alive_enemies++;
         }
+
+        for(i = 0; < aiPlanGetNumber(cPlanAttack))
+        {
+            int i_attack_plan = aiPlanGetIDByIndex(cPlanAttack, -1, true, i);
+            if (aiPlanGetVariableInt(i_attack_plan, cAttackPlanPlayerID, 0) == current_most_hated_enemy)
+                aiPlanDestroy(i_attack_plan);
+        }
+
+        current_most_hated_enemy = xsArrayGetInt(alive_enemies, aiRandInt(number_alive_enemies));
+        aiSetMostHatedPlayerID(current_most_hated_enemy);
     }
 }
 
@@ -2366,194 +2364,246 @@ rule MonitorOffensiveOperations inactive minInterval 9
 {
     xsSetRuleMinIntervalSelf(5);
     
+    if (aiTreatyActive())
+        return;
     if (kbGetAge() <= cAge2)
+        return;
+    
+    if (kbBaseGetUnderAttack(cMyID, kbBaseGetMainID(cMyID)) == true)
         return;
     
     xsEnableRule("MonitorBallista");
     
-    // Based on ageekhere's routine
-    // See the Age of Empires III mod 'Improvement Mod' AI version v2.46
-    
-    static int current_target_player = -1;
-    static int last_attack_time = 0;
-    static int attack_plan = -1;
-    
-    int target_player = aiGetMostHatedPlayerID();
-    bool change_target = true;
-    
-    if ((current_target_player >= 1) && 
-        (kbHasPlayerLost(current_target_player) == false) && 
-        (kbUnitCount(current_target_player, cUnitTypeLogicalTypeTCBuildLimit, cUnitStateAlive) >= 1))
-    {
-        int enemy_base = kbBaseGetMainID(current_target_player);
-        vector enemy_base_loc = kbBaseGetLocation(current_target_player, enemy_base);
-        if (countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cMyID, enemy_base_loc, 100.0) >= 1)
-        {
-            target_player = current_target_player;
-            change_target = false;
-        }
-    }
-    
-    int lowest_score = 999999;
-    if ((change_target) && (not(kbIsFFA())))
-    {
-        for(player = 1; < cNumberPlayers)
-        {
-            if (kbGetPlayerTeam(cMyID) == kbGetPlayerTeam(player))
-                continue;
-            if (kbHasPlayerLost(player) == true)
-                continue;
-            if (kbUnitCount(player, cUnitTypeLogicalTypeTCBuildLimit, cUnitStateAlive) <= 0)
-                continue;
-            if (aiGetScore(player) < lowest_score)
-            {
-                target_player = player;
-                lowest_score = aiGetScore(player);
-            }
-        }
-    }
-    
-    aiSetMostHatedPlayerID(target_player);
-	current_target_player = target_player;
-    
     int main_base = kbBaseGetMainID(cMyID);
-    vector main_base_loc = kbBaseGetLocation(cMyID, main_base);
-    
-    int my_army_size = countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cMyID, main_base_loc, 100.0);
-    
-    if (my_army_size >= 20)
+    if (main_base == -1)
+        return;
+    vector main_base_location = kbBaseGetLocation(cMyID, main_base);
+
+    for(i = 0; < aiPlanGetNumber(cPlanAttack))
     {
-        vector target_player_loc = kbBaseGetLocation(target_player, kbBaseGetMainID(target_player));
-        if (countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, kbGetMapCenter(), 2000) >= 1)
-            // TODO -- WHY? Also, we should check for AreaGroup
-            target_player_loc = kbUnitGetPosition(findUnit1(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia));
-        planMoveAttack(target_player_loc, 40);
-    }
-    
-    /**********************************************************************************************
-    // TODO - switch between this scoring and focusing on the most hated player
-    // Based on Panmaster's ZenMaster AI
-    float score = 0.0;
-    float best_score = 0.0;
-    int target_unit = -1;
-    vector target_loc = cInvalidVector;
-    for(unit_index = 0 ; < 50)
-    {
-        // TODO -- AreaGroup
-        int unit = findUnitByLocation1(cUnitTypeHasBountyValue, cPlayerRelationEnemyNotGaia, main_base_loc, 800.0, unit_index);
-        if (unit == -1) break;
-        vector unit_loc = kbUnitGetPosition(unit);
-        score = countUnitsByLocation(cUnitTypeAbstractVillager, cPlayerRelationEnemyNotGaia, unit_loc, 40.0);
-        score = score + countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, unit_loc, 40.0);
-        score = score / xsVectorLength(unit_loc - main_base_loc);
-        if (score > best_score)
+        int i_attack_plan = aiPlanGetIDByIndex(cPlanAttack, -1, true, i);
+        
+        vector i_attack_plan_point = aiPlanGetVariableVector(i_attack_plan, cAttackPlanAttackPoint, 0);
+        if (i_attack_plan_point != cInvalidVector && 
+            countUnitsByLocation(cUnitTypeHasBountyValue, cPlayerRelationEnemyNotGaia, i_attack_plan_point, 40.0) >= 1)
         {
-            best_score = score;
-            target_unit = unit;
+            continue;
         }
-    }
-    target_loc = kbUnitGetPosition(target_unit);
-    ************************************************************************************************/
-    
-    if (aiPlanGetState(attack_plan) >= 0)
-    {
-        if (aiPlanGetNumberUnits(attack_plan, cUnitTypeLogicalTypeLandMilitary) == 0)
+
+        vector i_attack_plan_location = aiPlanGetLocation(i_attack_plan);
+        if (i_attack_plan_location != cInvalidVector)
         {
-            aiPlanDestroy(attack_plan);
-            if (xsGetTime() - last_attack_time >= 120000)
+            if (countUnitsByLocation(cUnitTypeHasBountyValue, cPlayerRelationEnemyNotGaia, i_attack_plan_location, 40.0) >= 1)
             {
-                attack_plan = aiPlanCreate("Attack", cPlanAttack);
-                aiPlanSetDesiredPriority(attack_plan, 70);
-                aiPlanSetUnitStance(attack_plan, cUnitStanceAggressive);
-                aiPlanSetAllowUnderAttackResponse(attack_plan, true);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanPlayerID, 0, target_player);
-                aiPlanSetVariableVector(attack_plan, cAttackPlanAttackPoint, 0, target_player_loc);
-                aiPlanSetVariableFloat(attack_plan, cAttackPlanAttackPointEngageRange, 0, 60.0);
-                aiPlanSetNumberVariableValues(attack_plan, cAttackPlanTargetTypeID, 3, true);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 0, cUnitTypeAbstractVillager);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 1, cUnitTypeLogicalTypeLandMilitary);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 2, cUnitTypeLogicalTypeBuildingsNotWalls);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanAttackRoutePattern, 0, cAttackPlanAttackRoutePatternBest);
-                aiPlanSetVariableBool(attack_plan, cAttackPlanMoveAttack, 0, true);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanRefreshFrequency, 0, 5);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanHandleDamageFrequency, 0, 10);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanBaseAttackMode, 0, cAttackPlanBaseAttackModeRandom);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanRetreatMode, 0, cAttackPlanRetreatModeNone);
-                aiPlanSetVariableInt(attack_plan, cAttackPlanGatherWaitTime, 0, 0);
-                // TODO -- Leave some defenders at home
-                int num = kbUnitCount(cMyID, cUnitTypeLogicalTypeLandMilitary, cUnitStateAlive);
-                aiPlanAddUnitType(attack_plan, cUnitTypeLogicalTypeLandMilitary, num, num, num);
-                // aiPlanSetNoMoreUnits(attack_plan, true);
-                aiPlanSetActive(attack_plan, true);
-                last_attack_time = xsGetTime();
+                int t = 0;
+                for(j = 0; < countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cMyID, i_attack_plan_location, 40.0))
+                {
+                    if (findUnitByLocation1(cUnitTypeAbstractArtillery, cPlayerRelationEnemyNotGaia, i_attack_plan_location, 40.0, 0) == -1)
+                        break;
+                    
+                    int j_military_unit = findUnitByLocation2(cUnitTypeLogicalTypeLandMilitary, cMyID, i_attack_plan_location, 40.0, j);
+                    if (kbUnitIsType(j_military_unit, cUnitTypeAbstractInfantry) == true)
+                        continue;
+                    
+                    t++;
+                    int k = t / 7;
+                    aiTaskUnitWork(j_military_unit, 
+                                    findUnitByLocation3(cUnitTypeAbstractArtillery, cPlayerRelationEnemyNotGaia, i_attack_plan_location, 40.0, k));
+                }
+                
+                continue;
             }
+            
+            float highest_score = -1.0;
+            vector best_position = cInvalidVector;
+            int target_unit = -1;
+            int target_player = -1;
+            for(j = 0; < 50)
+            {
+                int j_enemy_unit = findUnitByLocation1(cUnitTypeHasBountyValue, cPlayerRelationEnemyNotGaia, i_attack_plan_location, 5000.0, j);
+                if (j_enemy_unit == -1)
+                    break;
+                
+                if (kbHasPlayerLost(kbUnitGetPlayerID(j_enemy_unit)) == true)
+                    continue;
+                
+                if (kbUnitGetMovementType(kbUnitGetProtoUnitID(j_enemy_unit)) != cMovementTypeLand)
+                    continue;
+                
+                vector j_enemy_unit_position = kbUnitGetPosition(j_enemy_unit);
+                float score = countUnitsByLocation(cUnitTypeAbstractVillager, cPlayerRelationEnemyNotGaia, j_enemy_unit_position, 40.0);
+                score = score + countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, j_enemy_unit_position, 40.0);
+                score = score + score;
+                score = score + countUnitsByLocation(cUnitTypeLogicalTypeBuildingsNotWalls, cPlayerRelationEnemyNotGaia, j_enemy_unit_position, 40.0);
+                score = score / xsVectorLength(i_attack_plan_location - j_enemy_unit_position);
+                
+                if (score > highest_score)
+                {
+                    highest_score = score;
+                    best_position = j_enemy_unit_position;
+                    target_unit = j_enemy_unit;
+                    target_player = kbUnitGetPlayerID(target_unit);
+                }
+            }
+
+            if (target_player == -1)
+            {
+                target_player = aiGetMostHatedPlayerID();
+                if (target_player <= 0 || kbHasPlayerLost(target_player) == true)
+                    return;
+                best_position = kbBaseGetLocation(target_player, kbBaseGetMainID(target_player));
+            }
+
+            if (best_position == cInvalidVector)
+                best_position = kbUnitGetPosition(findUnit1(cUnitTypeHasBountyValue, target_player));
+            
+            if (best_position == cInvalidVector)
+            {
+                aiPlanDestroy(i_attack_plan);
+                continue;
+            }
+
+            aiPlanSetVariableVector(i_attack_plan, cAttackPlanAttackPoint, 0, best_position);
+            aiPlanSetVariableInt(i_attack_plan, cAttackPlanPlayerID, 0, target_player);
+            aiPlanSetVariableInt(i_attack_plan, cAttackPlanSpecificTargetID,0, target_unit);
+            continue;
         }
-        
-        if (countUnitsByLocation(cUnitTypeUnit, cPlayerRelationEnemyNotGaia, aiPlanGetVariableVector(attack_plan, cAttackPlanAttackPoint, 0), 45.0) == 0)
-        {
-            aiPlanSetVariableInt(attack_plan, cAttackPlanPlayerID, 0, target_player);
-            aiPlanSetVariableVector(attack_plan, cAttackPlanAttackPoint, 0, target_player_loc);
-        }
-        
-        int target_unit = aiPlanGetVariableInt(attack_plan, cAttackPlanTargetID, 0);
-        if (kbUnitIsType(attack_plan, cUnitTypeAbstractWall) == true)
-        {
-            aiPlanSetVariableInt(attack_plan, cAttackPlanPlayerID, 0, target_player);
-            aiPlanSetVariableInt(attack_plan, cAttackPlanSpecificTargetID, 0, target_unit);
-        }
-        else if (target_unit == -1)
-        {
-            aiPlanSetVariableInt(attack_plan, cAttackPlanPlayerID, 0, target_player);
-            aiPlanSetVariableInt(attack_plan, cAttackPlanSpecificTargetID, 0, target_unit);
-        }
-        else if (kbUnitGetCurrentHitpoints(target_unit) < 0.1 )
-        {
-            aiPlanSetVariableInt(attack_plan, cAttackPlanPlayerID, 0, target_player);
-            aiPlanSetVariableInt(attack_plan,cAttackPlanSpecificTargetID, 0, target_unit);
-        }
-        else if (kbUnitIsType(target_unit, cUnitTypeHero) == true)
-        {
-            aiPlanSetVariableInt(attack_plan, cAttackPlanPlayerID, 0, target_player);
-            aiPlanSetVariableInt(attack_plan, cAttackPlanSpecificTargetID, 0, target_unit);
-        }
-        aiPlanSetNoMoreUnits(attack_plan, true);
     }
-    else
+
+    highest_score = -1.0;
+    best_position = cInvalidVector;
+    target_unit = -1;
+    target_player = -1;
+    for(i = 0; < 50)
     {
-        if(xsGetTime() - last_attack_time < 120000)
-            return;
+        int i_enemy_unit = findUnitByLocation1(cUnitTypeAll, cPlayerRelationEnemyNotGaia, main_base_location, 5000.0, i);
+        if (i_enemy_unit == -1)
+            break;
         
-        aiPlanDestroy(attack_plan);
-        attack_plan = aiPlanCreate("Attack", cPlanAttack);
-        aiPlanSetDesiredPriority(attack_plan, 70);
-        aiPlanSetUnitStance(attack_plan, cUnitStanceAggressive);
-        aiPlanSetAllowUnderAttackResponse(attack_plan, true);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanPlayerID, 0, target_player);
-        aiPlanSetVariableVector(attack_plan, cAttackPlanAttackPoint, 0, target_player_loc);
-        aiPlanSetVariableFloat(attack_plan, cAttackPlanAttackPointEngageRange, 0, 60.0);
-        aiPlanSetNumberVariableValues(attack_plan, cAttackPlanTargetTypeID, 3, true);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 0, cUnitTypeAbstractVillager);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 1, cUnitTypeLogicalTypeLandMilitary);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 2, cUnitTypeLogicalTypeBuildingsNotWalls);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanAttackRoutePattern, 0, cAttackPlanAttackRoutePatternBest);
-        aiPlanSetVariableBool(attack_plan, cAttackPlanMoveAttack, 0, true);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanRefreshFrequency, 0, 5);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanHandleDamageFrequency, 0, 10);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanBaseAttackMode, 0, cAttackPlanBaseAttackModeRandom);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanRetreatMode, 0, cAttackPlanRetreatModeNone);
-        aiPlanSetVariableInt(attack_plan, cAttackPlanGatherWaitTime, 0, 0);
-        // TODO -- Leave some defenders at home
-        num = kbUnitCount(cMyID, cUnitTypeLogicalTypeLandMilitary, cUnitStateAlive);
-        aiPlanAddUnitType(attack_plan, cUnitTypeLogicalTypeLandMilitary, num, num, num);
-        // aiPlanSetNoMoreUnits(attack_plan, true);
-        aiPlanSetActive(attack_plan, true);
-        last_attack_time = xsGetTime();
+        if (kbHasPlayerLost(kbUnitGetPlayerID(i_enemy_unit)) == true)
+            continue;
+        if (kbUnitGetMovementType(kbUnitGetProtoUnitID(i_enemy_unit)) != cMovementTypeLand)
+            continue;
+        if (kbUnitIsType(i_enemy_unit, cUnitTypeAbstractResourceCrate) == true)
+            continue;
+        if (kbUnitIsType(i_enemy_unit, cUnitTypeAnimalPrey) == true)
+            continue;
+        if (kbUnitIsType(i_enemy_unit, cUnitTypeAbstractWall) == true)
+            continue;
+        
+        vector i_enemy_unit_position = kbUnitGetPosition(i_enemy_unit);
+        score = countUnitsByLocation(cUnitTypeAbstractVillager, cPlayerRelationEnemyNotGaia, i_enemy_unit_position, 40.0);
+        score = score + countUnitsByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, i_enemy_unit_position, 40.0);
+        score = score + score;
+        score = score + countUnitsByLocation(cUnitTypeLogicalTypeBuildingsNotWalls, cPlayerRelationEnemyNotGaia, i_enemy_unit_position, 40.0);
+        score = score / xsVectorLength(main_base_location - i_enemy_unit_position);
+        
+        if (score > highest_score)
+        {
+            highest_score = score;
+            best_position = i_enemy_unit_position;
+            target_unit = i_enemy_unit;
+            target_player = kbUnitGetPlayerID(target_unit);
+        }
     }
+
+    if (target_player == -1)
+    {
+        target_player = aiGetMostHatedPlayerID();
+        if (target_player <= 0 || kbHasPlayerLost(target_player) == true)
+            return;
+        best_position = kbBaseGetLocation(target_player, kbBaseGetMainID(target_player));
+    }
+    
+    if (best_position == cInvalidVector)
+        best_position = kbUnitGetPosition(findUnit1(cUnitTypeHasBountyValue, target_player));
+    
+    int number_unassigned_units = 0;
+    for(i = 0; < kbUnitCount(cMyID, cUnitTypeLogicalTypeLandMilitary, cUnitStateAlive))
+    {
+        int i_military_unit = findUnit1(cUnitTypeLogicalTypeLandMilitary, cMyID, i);
+        if (kbUnitGetPlanID(i_military_unit) >= 0)
+            continue;
+        
+        vector i_military_unit_position = kbUnitGetPosition(i_military_unit);
+        if (kbCanPath2(i_military_unit_position, best_position, kbUnitGetProtoUnitID(i_military_unit)) == false)
+            continue;
+        
+        number_unassigned_units++;
+        // cUnitTypePolyStoneThrower counts as two units
+        if (kbUnitIsType(i_military_unit, cUnitTypePolyStoneThrower) == true)
+            number_unassigned_units++;
+    }
+
+    static int current_wave = 0;
+    
+    if (number_unassigned_units < 10 + 10 * kbGetAge())
+        return;
+    
+    current_wave++;
+
+    int attack_plan = aiPlanCreate("Attack Wave " + current_wave, cPlanAttack);
+    aiPlanSetDesiredPriority(attack_plan, 80);
+    aiPlanSetUnitStance(attack_plan, cUnitStanceAggressive);
+    aiPlanSetAllowUnderAttackResponse(attack_plan, true);
+    
+    // aiPlanSetInitialPosition(attack_plan, main_base_location);
+    // aiPlanSetVariableVector(attack_plan, cAttackPlanGatherPoint, 0, main_base_location);
+    // aiPlanSetVariableFloat(attack_plan, cAttackPlanGatherDistance, 0, 100.0);
+    // aiPlanSetVariableInt(attack_plan, cAttackPlanGatherWaitTime, 0, 0);
+    
+    aiPlanSetVariableInt(attack_plan, cAttackPlanPlayerID, 0, target_player);
+    
+    aiPlanSetVariableVector(attack_plan, cAttackPlanAttackPoint, 0, best_position);
+    aiPlanSetVariableFloat(attack_plan, cAttackPlanAttackPointEngageRange, 0, 60.0);
+    aiPlanSetVariableBool(attack_plan, cAttackPlanMoveAttack, 0, true);
+
+    aiPlanSetNumberVariableValues(attack_plan, cAttackPlanTargetTypeID, 3, true);
+    aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 0, cUnitTypeAbstractVillager);
+    aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 1, cUnitTypeLogicalTypeBuildingsNotWalls);
+    aiPlanSetVariableInt(attack_plan, cAttackPlanTargetTypeID, 2, cUnitTypeLogicalTypeLandMilitary);
+
+    aiPlanSetVariableInt(attack_plan, cAttackPlanAttackRoutePattern, 0, cAttackPlanAttackRoutePatternBest);
+    aiPlanSetVariableInt(attack_plan, cAttackPlanBaseAttackMode, 0, cAttackPlanBaseAttackModeRandom);
+    aiPlanSetVariableInt(attack_plan, cAttackPlanRetreatMode, 0, cAttackPlanRetreatModeNone);
+    
+    aiPlanSetVariableInt(attack_plan, cAttackPlanRefreshFrequency, 0, 5);
+    aiPlanSetVariableInt(attack_plan, cAttackPlanHandleDamageFrequency, 0, 5);
+
+    aiPlanAddUnitType(attack_plan, cUnitTypeLogicalTypeLandMilitary, 0, 0, number_unassigned_units);
+    
+    for(i = 0; < kbUnitCount(cMyID, cUnitTypeLogicalTypeLandMilitary, cUnitStateAlive))
+    {
+        i_military_unit = findUnit1(cUnitTypeLogicalTypeLandMilitary, cMyID, i);
+        
+        if (kbUnitIsType(i_military_unit, cUnitTypeHero) == true)
+            continue;
+        
+        if (kbUnitGetPlanID(i_military_unit) >= 0)
+            continue;
+        
+        i_military_unit_position = kbUnitGetPosition(i_military_unit);
+        
+        if (kbCanPath2(i_military_unit_position, best_position, kbUnitGetProtoUnitID(i_military_unit)) == false)
+            continue;
+        
+        aiPlanAddUnit(attack_plan, i_military_unit);
+    }
+
+    aiPlanSetNoMoreUnits(attack_plan, true);
+
+    aiPlanSetEventHandler(attack_plan, cPlanEventStateChange, "eWhenAttackPlanStateChanges");
+    
+    aiPlanSetActive(attack_plan, true);
 }
 
 
 rule MonitorBallista inactive minInterval 5
 {
+    // TODO: Oh boi what should I do with this...
+    // Don't use it yet.
+    return;
+
     if (kbUnitCount(cMyID, cUnitTypePolyStoneThrower, cUnitStateAlive) == 0)
         return;
     
