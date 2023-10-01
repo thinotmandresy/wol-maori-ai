@@ -2041,6 +2041,12 @@ rule MonitorVoyages active minInterval 5 runImmediately group StartupMonitors
     if (age == -1)
         age = kbGetAge();
     
+    if (age >= cAge5)
+    {
+        xsDisableSelf();
+        return;
+    }
+    
     static int destination = -1;
     static string destination_name = "BUG";
     int rangatira = findUnit1(cUnitTypeRangatira);
