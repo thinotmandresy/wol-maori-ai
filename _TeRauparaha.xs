@@ -356,14 +356,6 @@ void HandlerShipmentReturn(int param = -1)
 {
     blockaded = true;
     xsDisableRule("MonitorSpareShipments");
-    for(player = 1 ; < cNumberPlayers)
-    {
-        if (player == cMyID) continue;
-        if (kbIsPlayerEnemy(player)) continue;
-        aiChat(player, "It looks like we've been blockaded lol");
-        if (aiRandInt(100) < 50)
-            aiChat(player, "I ordered the card "+kbGetTechName(aiHCDeckGetCardTechID(orderedCard))+" but it couldn't be shipped.");
-    }
 }
 
 
