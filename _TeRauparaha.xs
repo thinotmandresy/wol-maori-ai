@@ -11,6 +11,7 @@
     * Updated MonitorDefensiveOperations.
     * Enemies are now chosen randomly.
     * Updated MonitorOffensiveOperations.
+    * Removed "I'm on a voyage" chat.
 
     Known issues:
     * Naval gameplay is not supported.
@@ -2071,15 +2072,8 @@ void HandlerVoyageState(int plan = -1)
 {
     if (aiPlanGetState(plan) == cPlanStateBuild)
     {
-        string destination_name = "lol this is a bug, you should report it";
-        if (aiPlanGetVariableInt(plan, cBuildPlanBuildingTypeID, 0) == cUnitTypePOLYVMNewSouthWales2)
-            destination_name = "Fiji";
-        if (aiPlanGetVariableInt(plan, cBuildPlanBuildingTypeID, 0) == cUnitTypePOLYVMVanDiemensLand3)
-            destination_name = "Van Diemen's Land";
-        if (aiPlanGetVariableInt(plan, cBuildPlanBuildingTypeID, 0) == cUnitTypePOLYVMChathamIslands4)
-            destination_name = "the Chatham Islands";
-        if (aiPlanGetVariableInt(plan, cBuildPlanBuildingTypeID, 0) == cUnitTypePOLYVMSouthAfrica5)
-            destination_name = "South Africa";
+        MonitorGathererAllocation();
+        
         vector destination = kbBuildingPlacementGetResultPosition(aiPlanGetVariableInt(plan, cBuildPlanBuildingPlacementID, 0));
         for(player = 1 ; < cNumberPlayers)
         {
@@ -2087,9 +2081,8 @@ void HandlerVoyageState(int plan = -1)
                 continue;
             if (kbIsPlayerEnemy(player))
                 continue;
+            
             aiCommsSendStatementWithVector(player, cAICommPromptToAllyIWillDefendLocation, destination);
-            aiChat(player, kbGetPlayerName(player)+", I'm on a voyage to "+destination_name+". See you in the next age.");
-            MonitorGathererAllocation();
         }
     }
 }
