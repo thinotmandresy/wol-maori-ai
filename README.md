@@ -38,4 +38,4 @@ If you have a hard time following these instructions, please [join WoL's Discord
 
 ## License
 
-See the [LICENSE](LICENSE) file for license rights and limitations (MIT).
+See the [LICENSE](LICENSE.md) file for license rights and limitations (MIT).
