@@ -21,10 +21,10 @@
 ******************************************************************************/
 
 
-include "_aiHeader.xs";
-include "_aiArrays.xs";
-include "_aiQueries.xs";
-include "_aiPlans.xs";
+include "./_aiHeader.xs";
+include "./_aiArrays.xs";
+include "./_aiQueries.xs";
+include "./_aiPlans.xs";
 
 
 void main(void)
