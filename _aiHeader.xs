@@ -28,6 +28,11 @@ extern vector gMainBaseLoc = cInvalidVector;
 extern float gMainBaseRadius = 80.0;
 extern int gMainBaseDefensePlan = -1;
 
+extern const float cTributePenalty = 0.85;
+extern int gFeedGoldTo = -1;
+extern int gFeedWoodTo = -1;
+extern int gFeedFoodTo = -1;
+
 mutable void initArrays(void){}
 mutable void HandlerResignRequest(int answer = -1){}
 

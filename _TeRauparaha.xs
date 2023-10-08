@@ -2006,6 +2006,105 @@ rule MonitorMoai inactive minInterval 5
 }
 
 
+rule MonitorFeeding inactive minInterval 60
+{
+    bool keep_feeding = false;
+    float to_send = 0.0;
+    static bool first_tribute = true;
+    
+
+    if (kbIsPlayerValid(gFeedGoldTo) == true)
+    {
+        keep_feeding = true;
+        to_send = 0.0;
+
+        if (aiResourceIsLocked(cResourceGold) == false)
+        {
+            kbEscrowFlush(cEconomyEscrowID, cResourceGold, false);
+            kbEscrowFlush(cMilitaryEscrowID, cResourceGold, false);
+            to_send = kbEscrowGetAmount(cRootEscrowID, cResourceGold) * cTributePenalty;
+        }
+
+        if (to_send > 100.0)
+        {
+            if (to_send > 1000.0)
+			    to_send = 1000;
+		    if (to_send > 200.0)
+                aiTribute(gFeedGoldTo, cResourceGold, to_send/2);
+            else
+                aiTribute(gFeedGoldTo, cResourceGold, 100.0);
+            
+            if (first_tribute)
+            {
+                first_tribute = false;
+                aiCommsSendStatement(gFeedGoldTo, cAICommPromptToAllyITributedCoin);
+            }
+        }
+    }
+   
+    if (kbIsPlayerValid(gFeedWoodTo) == true)
+    {
+        keep_feeding = true;
+        to_send = 0.0;
+
+        if (aiResourceIsLocked(cResourceWood) == false)
+        {
+            kbEscrowFlush(cEconomyEscrowID, cResourceWood, false);
+            kbEscrowFlush(cMilitaryEscrowID, cResourceWood, false);
+            to_send = kbEscrowGetAmount(cRootEscrowID, cResourceWood) * cTributePenalty;
+        }
+
+        if (to_send > 100.0)
+        {
+            if (to_send > 1000.0)
+                to_send = 1000;
+            if (to_send > 200.0)
+                aiTribute(gFeedWoodTo, cResourceWood, to_send/2);
+            else
+                aiTribute(gFeedWoodTo, cResourceWood, 100.0);
+            
+            if (first_tribute)
+            {
+                first_tribute = false;
+                aiCommsSendStatement(gFeedWoodTo, cAICommPromptToAllyITributedWood);
+            }
+        }
+    }
+   
+    if (kbIsPlayerValid(gFeedFoodTo) == true)
+    {
+        keep_feeding = true; // There is work to do, stay active.
+        to_send = 0.0;
+
+        if (aiResourceIsLocked(cResourceFood) == false)
+        {
+            kbEscrowFlush(cEconomyEscrowID, cResourceFood, false);
+            kbEscrowFlush(cMilitaryEscrowID, cResourceFood, false);
+            to_send = kbEscrowGetAmount(cRootEscrowID, cResourceFood) * .85;   // Round down for trib penalty
+        }
+
+        if (to_send > 100.0)
+        {
+            if (to_send > 1000.0)
+                to_send = 1000;
+            if (to_send > 200.0)
+                aiTribute(gFeedFoodTo, cResourceFood, to_send/2);
+            else
+                aiTribute(gFeedFoodTo, cResourceFood, 100.0);
+            
+            if (first_tribute)
+            {
+                first_tribute = false;
+                aiCommsSendStatement(gFeedFoodTo, cAICommPromptToAllyITributedFood);
+            }
+        }
+    }
+    
+    if (keep_feeding == false)
+        xsDisableSelf();
+}
+
+
 rule MonitorVoyages active minInterval 5 runImmediately group StartupMonitors
 {
     static int plan = -1;
@@ -2887,8 +2986,34 @@ void HandlerCommunicationTribute(int message = -1)
 void HandlerCommunicationFeed(int message = -1)
 {
     int message_sender = aiCommsGetSendingPlayer(message);
-    string message_sender_name = kbGetPlayerName(message_sender);
-    aiChat(message_sender, "Hey sorry "+message_sender_name+", the 'Feed' request isn't supported yet! It will be implemented in a future version though. Stay tuned ^_^ -- AlistairJah");
+    
+    for (i = 0; < aiCommsGetTargetListCount(message))
+    {
+        switch(aiCommsGetTargetListItem(message, i))
+        {
+            case cResourceGold:
+            {
+                gFeedGoldTo = message_sender;
+                xsEnableRule("MonitorFeeding");
+                aiChat(message_sender, "Alright, "+kbGetPlayerName(message_sender)+", I will feed you gold.");
+                break;
+            }
+            case cResourceWood:
+            {
+                gFeedWoodTo = message_sender;
+                xsEnableRule("MonitorFeeding");
+                aiChat(message_sender, "Alright, "+kbGetPlayerName(message_sender)+", I will feed you wood.");
+                break;
+            }
+            case cResourceFood:
+            {
+                gFeedFoodTo = message_sender;
+                xsEnableRule("MonitorFeeding");
+                aiChat(message_sender, "Alright, "+kbGetPlayerName(message_sender)+", I will feed you food.");
+                break;
+            }
+        }            
+    }
 }
 
 
@@ -2919,8 +3044,62 @@ void HandlerCommunicationStrategy(int message = -1)
 void HandlerCommunicationCancel(int message = -1)
 {
     int message_sender = aiCommsGetSendingPlayer(message);
-    string message_sender_name = kbGetPlayerName(message_sender);
-    aiChat(message_sender, "Hey sorry "+message_sender_name+", the 'Strategy' request isn't supported yet! It will be implemented in a future version though. Stay tuned ^_^ -- AlistairJah");
+
+    string resource_fed = "";
+
+    if (gFeedGoldTo == message_sender
+        || gFeedWoodTo == message_sender
+        || gFeedFoodTo == message_sender)
+    {
+        if (gFeedGoldTo == message_sender
+            && gFeedWoodTo == message_sender
+            && gFeedFoodTo == message_sender)
+        {
+            resource_fed = "food, wood and coin";
+        }
+        else if (gFeedGoldTo == message_sender
+            && gFeedWoodTo == message_sender
+            && gFeedFoodTo != message_sender)
+        {
+            resource_fed = "wood and coin";
+        }
+        else if (gFeedGoldTo == message_sender
+            && gFeedWoodTo != message_sender
+            && gFeedFoodTo == message_sender)
+        {
+            resource_fed = "food and coin";
+        }
+        else if (gFeedGoldTo != message_sender
+            && gFeedWoodTo == message_sender
+            && gFeedFoodTo == message_sender)
+        {
+            resource_fed = "food and wood";
+        }
+        else if (gFeedGoldTo == message_sender
+            && gFeedWoodTo != message_sender
+            && gFeedFoodTo != message_sender)
+        {
+            resource_fed = "coin";
+        }
+        else if (gFeedGoldTo != message_sender
+            && gFeedWoodTo == message_sender
+            && gFeedFoodTo != message_sender)
+        {
+            resource_fed = "wood";
+        }
+        else if (gFeedGoldTo != message_sender
+            && gFeedWoodTo != message_sender
+            && gFeedFoodTo == message_sender)
+        {
+            resource_fed = "food";
+        }
+
+        aiChat(message_sender, "Alright, "+kbGetPlayerName(message_sender)+", I will stop feeding you "+resource_fed+".");
+    }
+    
+    gFeedGoldTo = -1;
+    gFeedWoodTo = -1;
+    gFeedFoodTo = -1;
 }
 
 
