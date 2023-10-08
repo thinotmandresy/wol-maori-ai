@@ -21,7 +21,6 @@ extern bool gNoMoreBerry = false;
 extern bool gNoMoreTrees = false;
 extern bool gNoMoreMines = false;
 extern bool gFarmingMode = false;
-extern bool gWeAreReligious = false;
 extern bool gBuiltFirstPa = false;
 
 extern int gMainBase = -1;

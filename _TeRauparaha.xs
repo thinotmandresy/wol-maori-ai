@@ -795,9 +795,6 @@ rule MonitorGathererTasking inactive minInterval 5 runImmediately
     int on_wood = aiGetResourceGathererPercentage(cResourceWood, cRGPScript) * num_vil;
     int on_gold = num_vil - on_food - on_wood;
     int on_crte = 3;
-    int prayers = 0;
-    if (gWeAreReligious)
-        prayers = 10;
     
     int villager = -1;
     vector vil_loc = cInvalidVector;
