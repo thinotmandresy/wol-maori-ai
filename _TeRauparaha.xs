@@ -2028,8 +2028,8 @@ rule MonitorFeeding inactive minInterval 60
         if (to_send > 100.0)
         {
             if (to_send > 1000.0)
-			    to_send = 1000;
-		    if (to_send > 200.0)
+                to_send = 1000;
+            if (to_send > 200.0)
                 aiTribute(gFeedGoldTo, cResourceGold, to_send/2);
             else
                 aiTribute(gFeedGoldTo, cResourceGold, 100.0);
@@ -2995,7 +2995,7 @@ void HandlerCommunicationFeed(int message = -1)
             {
                 gFeedGoldTo = message_sender;
                 xsEnableRule("MonitorFeeding");
-                aiChat(message_sender, "Alright, "+kbGetPlayerName(message_sender)+", I will feed you gold.");
+                aiChat(message_sender, "Alright, "+kbGetPlayerName(message_sender)+", I will feed you coin.");
                 break;
             }
             case cResourceWood:
