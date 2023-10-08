@@ -1,17 +1,7 @@
 /******************************************************************************
     Te Rauparaha AI -- Wars of Liberty v1.0.15f "The Compromise Hotfix"
     by Thinot "AlistairJah" Mandresy
-    Last updated on October 1st, 2023
-    Changes from "Anniversary Patch":
-    * The previous versioning system was stupid. I'm now using the same versioning system as the mod itself.
-    * Fixed Imperial Age "this is a bug" chat spam.
-    * Removed useless/inaccurate blockade chat.
-    * The resource forecasting math is now based on aiPlans.
-    * Removed voyage affordability check.
-    * Updated MonitorDefensiveOperations.
-    * Enemies are now chosen randomly.
-    * Updated MonitorOffensiveOperations.
-    * Removed "I'm on a voyage" chat.
+    Changelog: https://github.com/thinotmandresy/wol-maori-ai/commits/main
 
     Known issues:
     * Naval gameplay is not supported.
