@@ -97,7 +97,6 @@ void main(void)
     
     aiSetHandler("HandlerShipmentEarned", cXSShipResourceGranted);
     aiSetHandler("HandlerShipmentArrive", cXSHomeCityTransportArriveHandler);
-    aiSetHandler("HandlerShipmentReturn", cXSHomeCityTransportReturnHandler);
     aiSetHandler("HandlerResignRequest", cXSResignHandler);
     aiCommsSetEventHandler("HandlerCommunication");
     
@@ -171,7 +170,6 @@ void initArrays(void)
 }
 
 
-bool blockaded = false;
 int orderedCard = -1;
 void orderCard(int cardIndex = -1)
 {
@@ -262,12 +260,6 @@ bool HandlerShipmentShipMilitary(void)
 
 void HandlerShipmentEarned(int param = -1)
 {
-    if (blockaded)
-    {
-        xsDisableRule("MonitorSpareShipments");
-        return;
-    }
-    
     if (kbResourceGet(cResourceShips) == 0) return;
     
     if (kbBaseGetUnderAttack(cMyID, kbBaseGetMainID(cMyID)) == true)
@@ -359,13 +351,6 @@ void HandlerShipmentEarned(int param = -1)
 void HandlerShipmentArrive(int param = -1)
 {
     orderedCard = -1;
-}
-
-
-void HandlerShipmentReturn(int param = -1)
-{
-    blockaded = true;
-    xsDisableRule("MonitorSpareShipments");
 }
 
 
