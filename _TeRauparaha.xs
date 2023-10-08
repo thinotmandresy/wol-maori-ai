@@ -162,7 +162,6 @@ void HandlerFirstPaPlanState(int plan = -1)
     xsEnableRule("MonitorOffensiveOperations");
     xsEnableRule("MonitorCommercialTradingPosts");
     xsEnableRule("MonitorNativeTradingPosts");
-    xsEnableRule("MonitorReligion");
 }
 
 
@@ -2753,76 +2752,6 @@ rule MonitorNativeAlliances inactive minInterval 20 runImmediately
         }
         planMaintain(native, kbGetBuildLimit(cMyID, native), cRootEscrowID, 10, -1, 20, true);
     }
-}
-
-
-rule MonitorReligion inactive minInterval 30
-{
-    if (kbGetAge() <= cAge2)
-        return;
-    
-    if (kbUnitCount(cMyID, cUnitTypePOLYTemple, cUnitStateAlive) >= 1)
-    {
-        // TODO - Train Priests
-        
-        int religion = -1;
-        if (kbTechGetStatus(cTechRELIGIONAtheism) == cTechStatusActive)
-            religion = cTechRELIGIONAtheism;
-        if (kbTechGetStatus(cTechRELIGIONAnglican) == cTechStatusActive)
-            religion = cTechRELIGIONAnglican;
-        if (kbTechGetStatus(cTechRELIGIONManaismMaori) == cTechStatusActive)
-            religion = cTechRELIGIONManaismMaori;
-        gWeAreReligious = (religion >= 0) && (religion != cTechRELIGIONAtheism);
-        
-        switch(religion)
-        {
-            case cTechRELIGIONAtheism:
-            {
-                planResearch(cTechRELIGIONAtheism02);
-                planResearch(cTechRELIGIONAtheism04);
-                planResearch(cTechRELIGIONAtheism05);
-                if (kbGetAge() <= cAge4)
-                    planResearch(cTechRELIGIONAtheism06);
-                break;
-            }
-            case cTechRELIGIONAnglican:
-            {
-                planResearch(cTechRELIGIONAnglican01);
-                planResearch(cTechRELIGIONAnglican02);
-                // planResearch(cTechRELIGIONAnglican03); // TODO - Priests pray
-                break;
-            }
-            case cTechRELIGIONManaismMaori:
-            {
-                planResearch(cTechManaismTiki);
-                if (kbUnitCount(cMyID, cUnitTypeHomeCityWaterSpawnFlag, cUnitStateAlive) >= 1)
-                {
-                    planResearch(cTechManaismMauisFishhook);
-                    planResearch(cTechManaismTangaroa);
-                }
-                planResearch(cTechManaismSocialCastes);
-                planResearch(cTechManaismTane);
-                break;
-            }
-        }
-        return;
-    }
-    
-    if (kbUnitCount(cMyID, cUnitTypePOLYTemple, cUnitStateABQ) >= 1)
-        return;
-    
-    if (aiPlanGetIDByTypeAndVariableType(cPlanBuild, cBuildPlanBuildingTypeID, cUnitTypePOLYTemple, true) >= 0)
-        return;
-    
-    if (kbBaseGetUnderAttack(cMyID, kbBaseGetMainID(cMyID)) == true)
-        return;
-    
-    vector bldg_loc = kbBaseGetLocation(cMyID, kbBaseGetMainID(cMyID));
-    bldg_loc = bldg_loc + xsVectorNormalize(kbBaseGetLocation(cMyID, kbBaseGetMainID(cMyID)) - kbGetMapCenter()) * 40.0;
-    int plan = planBuild(cUnitTypePOLYTemple, kbBaseGetLocation(cMyID, kbBaseGetMainID(cMyID)), 80.0, bldg_loc, 30.0);
-    aiPlanAddUnitType(plan, cUnitTypePOLYvillager, 1, 1, 1);
-    aiPlanSetEventHandler(plan, cPlanEventStateChange, "HandlerBuildingConstructionState");
-    aiPlanSetActive(plan, true);
 }
 
 
