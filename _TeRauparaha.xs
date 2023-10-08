@@ -2593,25 +2593,6 @@ rule MonitorBallista inactive minInterval 5
 }
 
 
-rule MonitorRoutes active minInterval 5
-{
-    return; // Scratch this whole routine. This just a placeholder for a TODO feature
-    
-    kbLookAtAllUnitsOnMap();
-    
-    if (aiPlanGetIDByTypeAndVariableType(cPlanData, -1, -1, false) == -1)
-    {
-        int db = aiPlanCreate("Data", cPlanData);
-        aiPlanAddUserVariableInt(db, 0, "a", 1);
-        aiPlanSetUserVariableInt(db, 0, 0, 0);
-    }
-    else
-        db = aiPlanGetIDByTypeAndVariableType(cPlanData, -1, -1, false);
-    
-    
-}
-
-
 rule MonitorCommercialTradingPosts inactive minInterval 60
 {
     if (kbUnitCount(0, cUnitTypeypSocketTradeRoute) == 0)
