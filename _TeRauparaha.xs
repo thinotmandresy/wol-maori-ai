@@ -126,6 +126,33 @@ void resetEscrows(void) {
   kbEscrowAllocateCurrentResources();
 }
 
+void applyDifficultySettings(void) {
+  int startingHandicap = kbGetPlayerHandicap(cMyID);
+
+  switch (aiGetWorldDifficulty()) {
+    case cDifficultySandbox: {
+      kbSetPlayerHandicap(cMyID, startingHandicap * 0.6);
+      break;
+    }
+    case cDifficultyEasy: {
+      kbSetPlayerHandicap(cMyID, startingHandicap * 0.7);
+      break;
+    }
+    case cDifficultyModerate: {
+      kbSetPlayerHandicap(cMyID, startingHandicap * 0.8);
+      break;
+    }
+    case cDifficultyHard: {
+      kbSetPlayerHandicap(cMyID, startingHandicap * 1.0);
+      break;
+    }
+    case cDifficultyExpert: {
+      kbSetPlayerHandicap(cMyID, startingHandicap * 1.5);
+      break;
+    }
+  }
+}
+
 void buildStartingPa(void) {
   // An internal, unfixable bug makes the AI refuse to build most buildings
   // if the inventory does not contain at least an equal amount of resources
@@ -164,10 +191,7 @@ void main(void) {
   // Enable cPlanTransport on land maps (for garrisoning/ejecting units).
   aiSetWaterMap(true);
 
-  // TODO -- set handicaps for all difficulties.
-  if (aiGetWorldDifficulty() == cDifficultyExpert) {
-    kbSetPlayerHandicap( cMyID, kbGetPlayerHandicap(cMyID) * 1.5);
-  }
+  applyDifficultySettings();
 
   // Create a unit picker for dynamic unit training,
   // i.e. without predefined protounits.
