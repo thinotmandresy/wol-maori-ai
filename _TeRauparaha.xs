@@ -1,7 +1,7 @@
 extern const string QV_ColonyEstablished = "Colony Established";
 extern const string QV_UnitPickerID = "Unit Picker ID";
 
-extern bool isDebug = false;
+extern const bool isDebug = false;
 
 void debug(string message = "") {
   if (isDebug == false) {
