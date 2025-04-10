@@ -1,3 +1,5 @@
+extern const string QV_ColonyEstablished = "Colony Established";
+
 extern bool isDebug = false;
 
 void debug(string message = "") {
@@ -218,7 +220,7 @@ void handleStartingPaState(int planID = -1)
     return;
   }
 
-  xsQVSet("Colony Established", 1);
+  set(QV_ColonyEstablished);
 
   int paID = kbUnitQueryGetResult(queryID, 0);
   kbUnitQueryDestroy(queryID);
