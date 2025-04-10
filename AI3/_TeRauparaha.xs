@@ -264,3 +264,23 @@ void main(void) {
   // Build the Pa and let the game begin!
   buildStartingPa();
 }
+
+rule GenericExploration
+active
+minInterval 1
+{
+  static int counter = 0;
+
+  if (aiPlanGetNumber(cPlanExplore, -1, true) >= 5) {
+    return;
+  }
+
+  counter++;
+
+  int planID = aiPlanCreate("Generic Exploration " + counter, cPlanExplore);
+  aiPlanSetDesiredPriority(planID, 100);
+  aiPlanSetAllowUnderAttackResponse(planID, false);
+  aiPlanSetUserVariableFloat(planID, cExplorePlanLOSMultiplier, 0, 10 + aiRandInt(11));
+  aiPlanAddUnitType(planID, cUnitTypeLogicalTypeValidSharpshoot, 1, 1, 1);
+  aiPlanSetActive(planID, true);
+}
