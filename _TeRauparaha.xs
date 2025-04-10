@@ -20,6 +20,18 @@ void debug(string message = "") {
   xsSetContextPlayer(cMyID);
 }
 
+void set(string key = "") {
+  xsQVSet(key, 1);
+}
+
+void unset(string key = "") {
+  xsQVSet(key, 0);
+}
+
+bool isset(string key = "") {
+  return(xsQVGet(key) > 0);
+}
+
 void chatAll(string message = "") {
   for (playerID = 1; < cNumberPlayers) {
     if (playerID == cMyID) {
