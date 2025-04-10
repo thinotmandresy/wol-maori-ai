@@ -172,8 +172,8 @@ void buildStartingPa(void) {
     return;
   }
 
-  int paPorterId = kbUnitQueryGetResult(queryID, 0);
-  vector paPorterPos = kbUnitGetPosition(paPorterId);
+  int paPorterID = kbUnitQueryGetResult(queryID, 0);
+  vector paPorterPos = kbUnitGetPosition(paPorterID);
   kbUnitQueryDestroy(queryID);
   
   // TODO -- Create a build plan to build the starting Pa.
