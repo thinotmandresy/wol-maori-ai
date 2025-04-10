@@ -202,6 +202,7 @@ void handleStartingPaState(int planID = -1)
   kbUnitQuerySetPlayerID(queryID, cMyID, false);
   if (kbUnitQueryExecute(queryID) == 0) {
     debug("Starting Pa state: " + aiPlanGetState(planID));
+    kbUnitQueryDestroy(queryID);
     return;
   }
 
