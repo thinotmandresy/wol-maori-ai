@@ -1,4 +1,5 @@
 extern const string QV_ColonyEstablished = "Colony Established";
+extern const string QV_UnitPickerID = "Unit Picker ID";
 
 extern bool isDebug = false;
 
@@ -255,7 +256,7 @@ void main(void) {
 
   // Create a unit picker for dynamic unit training,
   // i.e. without predefined protounits.
-  xsQVSet("Unit Picker ID", kbUnitPickCreate("Unit Picker"));
+  xsQVSet(QV_UnitPickerID, kbUnitPickCreate("Unit Picker"));
 
   // Store all resources in the same inventory (Root)
   resetEscrows();
