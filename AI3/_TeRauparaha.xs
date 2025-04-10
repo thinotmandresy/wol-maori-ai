@@ -1,3 +1,5 @@
+include "include/query.xs";
+
 extern const string QV_ColonyEstablished = "Colony Established";
 extern const string QV_UnitPickerID = "Unit Picker ID";
 
