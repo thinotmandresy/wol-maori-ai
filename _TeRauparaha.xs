@@ -175,8 +175,53 @@ void buildStartingPa(void) {
   int paPorterID = kbUnitQueryGetResult(queryID, 0);
   vector paPorterPos = kbUnitGetPosition(paPorterID);
   kbUnitQueryDestroy(queryID);
-  
-  // TODO -- Create a build plan to build the starting Pa.
+
+  int planID = aiPlanCreate("Build Starting Pa", cPlanBuild);
+  aiPlanSetVariableInt(planID, cBuildPlanBuildingTypeID, 0, cUnitTypeMaoriPa);
+  aiPlanSetInitialPosition(planID, paPorterPos);
+  aiPlanSetVariableVector(planID, cBuildPlanCenterPosition, 0, paPorterPos);
+  aiPlanSetVariableFloat(planID, cBuildPlanCenterPositionDistance, 0, 60.0);
+  aiPlanSetUserVariableVector(planID, cBuildPlanInfluencePosition, 0, paPorterPos);
+  aiPlanSetVariableFloat(planID, cBuildPlanInfluencePositionDistance, 0, 60.0);
+  aiPlanSetVariableFloat(planID, cBuildPlanInfluencePositionValue, 0, 500.0);
+  aiPlanSetVariableInt(planID, cBuildPlanInfluencePositionFalloff, 0, cBPIFalloffLinear);
+  aiPlanSetVariableInt(planID, cBuildPlanBuildUnitID, 0, paPorterID);
+  aiPlanAddUnitType(planID, cUnitTypePaPorter, 0, 0, 1);
+  aiPlanAddUnit(planID, paPorterID);
+  aiPlanSetEventHandler(planID, cPlanEventStateChange, "handleStartingPaState");
+  aiPlanSetActive(planID, true);
+}
+
+void handleStartingPaState(int planID = -1)
+{
+  int queryID = kbUnitQueryCreate("Starting Pa Query");
+  kbUnitQuerySetUnitType(queryID, cUnitTypeMaoriPa);
+  kbUnitQuerySetState(queryID, cUnitStateAlive);
+  kbUnitQuerySetIgnoreKnockedOutUnits(queryID, true);
+  kbUnitQuerySetPlayerRelation(queryID, -1);
+  kbUnitQuerySetPlayerID(queryID, cMyID, false);
+  if (kbUnitQueryExecute(queryID) == 0) {
+    debug("Starting Pa state: " + aiPlanGetState(planID));
+    return;
+  }
+
+  xsQVSet("Colony Established", 1);
+
+  int paID = kbUnitQueryGetResult(queryID, 0);
+  kbUnitQueryDestroy(queryID);
+  vector paPos = kbUnitGetPosition(paID);
+  vector baseFront = xsVectorNormalize(kbGetMapCenter() - paPos);
+
+  // TODO -- Set military gather point & maximum economy distance.
+  int mainBaseID = kbBaseCreate(cMyID, "Main Base", paPos, 80.0);
+  kbBaseSetMain(cMyID, mainBaseID, true);
+  kbBaseSetEconomy(cMyID, mainBaseID, true);
+  kbBaseSetMilitary(cMyID, mainBaseID, true);
+  kbBaseSetSettlement(cMyID, mainBaseID, true);
+  kbBaseSetFrontVector(cMyID, mainBaseID, baseFront);
+  kbBaseSetActive(cMyID, mainBaseID, true);
+
+  // TODO -- Now let activities begin!
 }
 
 void main(void) {
