@@ -177,21 +177,12 @@ void buildStartingPa(void) {
   // The only way around it is to cheat...
   aiCheatAddResource("Wood", 300); // A Pa costs 300 wood.
 
-  int queryID = kbUnitQueryCreate("Pa Porter Query");
-  kbUnitQuerySetUnitType(queryID, cUnitTypePaPorter);
-  kbUnitQuerySetState(queryID, cUnitStateAlive);
-  kbUnitQuerySetIgnoreKnockedOutUnits(queryID, true);
-  kbUnitQuerySetPlayerRelation(queryID, -1);
-  kbUnitQuerySetPlayerID(queryID, cMyID, false);
-  if (kbUnitQueryExecute(queryID) == 0) {
+  int paPorterID = getUnit1(cUnitTypePaPorter);
+  if (paPorterID == -1) {
     debug("No Pa Porters found. Cannot build a Pa.");
-    kbUnitQueryDestroy(queryID);
     return;
   }
-
-  int paPorterID = kbUnitQueryGetResult(queryID, 0);
   vector paPorterPos = kbUnitGetPosition(paPorterID);
-  kbUnitQueryDestroy(queryID);
 
   int planID = aiPlanCreate("Build Starting Pa", cPlanBuild);
   aiPlanSetVariableInt(planID, cBuildPlanBuildingTypeID, 0, cUnitTypeMaoriPa);
@@ -211,22 +202,11 @@ void buildStartingPa(void) {
 
 void handleStartingPaState(int planID = -1)
 {
-  int queryID = kbUnitQueryCreate("Starting Pa Query");
-  kbUnitQuerySetUnitType(queryID, cUnitTypeMaoriPa);
-  kbUnitQuerySetState(queryID, cUnitStateAlive);
-  kbUnitQuerySetIgnoreKnockedOutUnits(queryID, true);
-  kbUnitQuerySetPlayerRelation(queryID, -1);
-  kbUnitQuerySetPlayerID(queryID, cMyID, false);
-  if (kbUnitQueryExecute(queryID) == 0) {
+  int paID = getUnit1(cUnitTypeMaoriPa);
+  if (paID == -1) {
     debug("Starting Pa state: " + aiPlanGetState(planID));
-    kbUnitQueryDestroy(queryID);
     return;
   }
-
-  set(QV_ColonyEstablished);
-
-  int paID = kbUnitQueryGetResult(queryID, 0);
-  kbUnitQueryDestroy(queryID);
   vector paPos = kbUnitGetPosition(paID);
   vector baseFront = xsVectorNormalize(kbGetMapCenter() - paPos);
 
