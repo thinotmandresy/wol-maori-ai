@@ -160,21 +160,21 @@ void buildStartingPa(void) {
   // The only way around it is to cheat...
   aiCheatAddResource("Wood", 300); // A Pa costs 300 wood.
 
-  int queryId = kbUnitQueryCreate("Pa Porter Query");
-  kbUnitQuerySetUnitType(queryId, cUnitTypePaPorter);
-  kbUnitQuerySetState(queryId, cUnitStateAlive);
-  kbUnitQuerySetIgnoreKnockedOutUnits(queryId, true);
-  kbUnitQuerySetPlayerRelation(queryId, -1);
-  kbUnitQuerySetPlayerID(queryId, cMyID, false);
-  if (kbUnitQueryExecute(queryId) == 0) {
+  int queryID = kbUnitQueryCreate("Pa Porter Query");
+  kbUnitQuerySetUnitType(queryID, cUnitTypePaPorter);
+  kbUnitQuerySetState(queryID, cUnitStateAlive);
+  kbUnitQuerySetIgnoreKnockedOutUnits(queryID, true);
+  kbUnitQuerySetPlayerRelation(queryID, -1);
+  kbUnitQuerySetPlayerID(queryID, cMyID, false);
+  if (kbUnitQueryExecute(queryID) == 0) {
     debug("No Pa Porters found. Cannot build a Pa.");
-    kbUnitQueryDestroy(queryId);
+    kbUnitQueryDestroy(queryID);
     return;
   }
 
-  int paPorterId = kbUnitQueryGetResult(queryId, 0);
+  int paPorterId = kbUnitQueryGetResult(queryID, 0);
   vector paPorterPos = kbUnitGetPosition(paPorterId);
-  kbUnitQueryDestroy(queryId);
+  kbUnitQueryDestroy(queryID);
   
   // TODO -- Create a build plan to build the starting Pa.
 }
