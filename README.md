@@ -31,12 +31,12 @@ AI code.
 
 Before installing the Maori AI, go to your **Age of Empires III** game folder (`AI3` folder) and backup the following files:
 
-- `_aiArrays.xs`
-- `_aiForecasts.xs`
-- `_aiHeader.xs`
-- `_aiPlans.xs`
-- `_aiQueries.xs`
-- `_TeRauparaha.xs`
+- 📄 `_aiArrays.xs`
+- 📄 `_aiForecasts.xs`
+- 📄 `_aiHeader.xs`
+- 📄 `_aiPlans.xs`
+- 📄 `_aiQueries.xs`
+- 📄 `_TeRauparaha.xs`
 
 Simply move these files to a safe location.
 
@@ -49,9 +49,13 @@ Simply move these files to a safe location.
 
 ### Remove AI Files
 
-To uninstall, simply **delete** the following file from the **AI3** folder:
+To uninstall, simply **delete** the following files from the **AI3** folder:
 
-- `_TeRauparaha.xs`
+- 📄 `_TeRauparaha.xs`
+
+As well as the following folders:
+
+- 📁 `include`
 
 ### Restore Backup Files
 
