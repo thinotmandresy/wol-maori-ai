@@ -393,4 +393,6 @@ minInterval 5
       return;
     }
   }
+
+  aiRansomExplorer(rangatiraID, cRootEscrowID, paID);
 }
