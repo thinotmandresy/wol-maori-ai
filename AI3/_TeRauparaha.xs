@@ -218,25 +218,13 @@ rule RangatiraExploration
 active
 minInterval 1
 {
-  static int rangatiraQueryID = -1;
-  if (rangatiraQueryID == -1) {
-    rangatiraQueryID = kbUnitQueryCreate("Rangatira Query (Rangatira Exploration)");
-    kbUnitQuerySetUnitType(rangatiraQueryID, cUnitTypeRangatira);
-    kbUnitQuerySetState(rangatiraQueryID, cUnitStateAlive);
-    kbUnitQuerySetIgnoreKnockedOutUnits(rangatiraQueryID, true);
-    kbUnitQuerySetPlayerRelation(rangatiraQueryID, -1);
-    kbUnitQuerySetPlayerID(rangatiraQueryID, cMyID, false);
-  }
-
   static bool isRecoveryMode = false;
 
-  kbUnitQueryResetResults(rangatiraQueryID);
-  if (kbUnitQueryExecute(rangatiraQueryID) == 0) {
+  int rangatiraID = getUnit1(cUnitTypeRangatira, cMyID, 0);
+  if (rangatiraID == -1) {
     debug("No Rangatira found. Cannot explore.");
     return;
   }
-
-  int rangatiraID = kbUnitQueryGetResult(rangatiraQueryID, 0);
   vector rangatiraPos = kbUnitGetPosition(rangatiraID);
 
   int mainBaseID = kbBaseGetMainID(cMyID);
