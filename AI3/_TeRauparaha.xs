@@ -374,3 +374,29 @@ minInterval 1
 
   aiTaskUnitMove(rangatiraID, aiRandLocation());
 }
+
+rule RansomPayment
+active
+minInterval 5
+{
+  if (kbGetAge() >= 5) {
+    xsDisableSelf();
+    return;
+  }
+
+  int rangatiraID = aiGetFallenExplorerID();
+  if (rangatiraID == -1) {
+    return;
+  }
+
+  int paID = getUnit1(cUnitTypeMaoriPa);
+  if (paID == -1) {
+    return;
+  }
+
+  for(resourceTypeID = 0 ; < 8) {
+    if (kbResourceGet(resourceTypeID) < kbUnitCostPerResource(kbUnitGetProtoUnitID(rangatiraID), resourceTypeID)) {
+      return;
+    }
+  }
+}
