@@ -39,8 +39,7 @@ bool isset(string key = "") {
 }
 
 void sendStartupWarnings(void) {
-  if (aiGetGameType() != cGameTypeRandom)
-  {
+  if (aiGetGameType() != cGameTypeRandom) {
     if (aiGetGameType() == cGameTypeSaved) {
       sendNotification(
         "WARNING: " +
@@ -145,8 +144,7 @@ void buildStartingPa(void) {
   aiPlanSetActive(planID, true);
 }
 
-void handleStartingPaState(int planID = -1)
-{
+void handleStartingPaState(int planID = -1) {
   int paID = getUnit1(cUnitTypeMaoriPa);
   if (paID == -1) {
     debug("Starting Pa state: " + aiPlanGetState(planID));
@@ -259,7 +257,7 @@ minInterval 1
     if (isAwayFromBase == true) {
       aiTaskUnitMove(rangatiraID, mainBasePos);
     }
-    
+
     isRecoveryMode = true;
     return;
   }
@@ -277,7 +275,7 @@ minInterval 1
     }
     return;
   }
-    
+
   if (getUnitCountByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, rangatiraPos, 50.0) >= 2) {
     if (isAwayFromBase == true) {
       aiTaskUnitMove(rangatiraID, mainBasePos);
@@ -288,17 +286,16 @@ minInterval 1
   for(i = 0 ; < kbUnitCount(0, cUnitTypeHerdable, cUnitStateAlive)) {
     int herdableID = getUnitByPos1(cUnitTypeHerdable, 0, rangatiraPos, 80.0, i);
     vector herdablePos = kbUnitGetPosition(herdableID);
-    
+
     if (kbCanPath2(rangatiraPos, herdablePos, cUnitTypeRangatira) == false) {
       continue;
     }
-    
+
     aiTaskUnitMove(rangatiraID, herdablePos);
     return;
   }
 
-  for(i = 0 ; < kbUnitCount(0, cUnitTypeAbstractNuggetLand, cUnitStateAlive))
-  {
+  for(i = 0 ; < kbUnitCount(0, cUnitTypeAbstractNuggetLand, cUnitStateAlive)) {
     int nuggetID = getUnitByPos1(cUnitTypeAbstractNuggetLand, 0, rangatiraPos, 2000.0, i);
     vector nuggetPos = kbUnitGetPosition(nuggetID);
     if (kbCanPath2(rangatiraPos, nuggetPos, cUnitTypeRangatira) == false) {
@@ -307,15 +304,15 @@ minInterval 1
     if (getUnitCountByLocation(cUnitTypeBuilding, cPlayerRelationEnemyNotGaia, nuggetPos, 50.0) >= 1) {
       continue;
     }
-    if ((kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetBearTree) || 
-        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetKidnap) || 
-        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetKidnapBrit) || 
-        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetPirate) || 
-        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetWolfMissionary) || 
-        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetWolfRock) || 
-        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetWolfTreebent) || 
-        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeypNuggetKidnapAsian) || 
-        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeypNuggetPirateAsian) || 
+    if ((kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetBearTree) ||
+        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetKidnap) ||
+        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetKidnapBrit) ||
+        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetPirate) ||
+        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetWolfMissionary) ||
+        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetWolfRock) ||
+        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetWolfTreebent) ||
+        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeypNuggetKidnapAsian) ||
+        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeypNuggetPirateAsian) ||
         (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeypNuggetTreeAsian))
     {
       if (getUnitCountByLocation(cUnitTypeConvertsHerds, 0, nuggetPos, 20.0) == 0) {
@@ -332,8 +329,7 @@ minInterval 1
       maxGuardians = 3;
     }
 
-    for(j = 0 ; < getUnitCountByLocation(cUnitTypeGuardian, 0, nuggetPos, 20.0))
-    {
+    for(j = 0 ; < getUnitCountByLocation(cUnitTypeGuardian, 0, nuggetPos, 20.0)) {
       int guardianID = getUnitByPos2(cUnitTypeGuardian, 0, nuggetPos, 20.0, j);
       if (kbUnitIsDead(guardianID) == true) {
         continue;
@@ -341,21 +337,19 @@ minInterval 1
       guardianCount++;
     }
 
-    if (guardianCount == 0)
-    {
+    if (guardianCount == 0) {
       aiTaskUnitWork(rangatiraID, nuggetID);
       return;
     }
 
-    if (guardianCount <= maxGuardians)
-    {
+    if (guardianCount <= maxGuardians) {
       aiTaskUnitWork(rangatiraID, getUnitByPos2(cUnitTypeGuardian, 0, nuggetPos, 20.0, 0));
       return;
     }
   }
 
-  if ((kbUnitIsType(kbUnitGetTargetUnitID(rangatiraID), cUnitTypeGuardian) == true) && 
-      (kbUnitGetPlayerID(kbUnitGetTargetUnitID(rangatiraID)) == 0)) 
+  if ((kbUnitIsType(kbUnitGetTargetUnitID(rangatiraID), cUnitTypeGuardian) == true) &&
+      (kbUnitGetPlayerID(kbUnitGetTargetUnitID(rangatiraID)) == 0))
   {
     return;
   }
