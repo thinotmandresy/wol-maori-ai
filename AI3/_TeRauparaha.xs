@@ -38,6 +38,10 @@ bool isset(string key = "") {
   return(xsQVGet(key) > 0);
 }
 
+bool isPlannedForConstruction(int unitTypeID = -1) {
+  return(aiPlanGetIDByTypeAndVariableType(cPlanBuild, cBuildPlanBuildingTypeID, unitTypeID, true) >= 0);
+}
+
 void sendStartupWarnings(void) {
   if (aiGetGameType() != cGameTypeRandom) {
     if (aiGetGameType() == cGameTypeSaved) {
