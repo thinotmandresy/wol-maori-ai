@@ -211,3 +211,166 @@ minInterval 1
   aiPlanAddUnitType(planID, cUnitTypeLogicalTypeValidSharpshoot, 1, 1, 1);
   aiPlanSetActive(planID, true);
 }
+
+rule RangatiraExploration
+active
+minInterval 1
+{
+  static int rangatiraQueryID = -1;
+  if (rangatiraQueryID == -1) {
+    rangatiraQueryID = kbUnitQueryCreate("Rangatira Query (Rangatira Exploration)");
+    kbUnitQuerySetUnitType(rangatiraQueryID, cUnitTypeRangatira);
+    kbUnitQuerySetState(rangatiraQueryID, cUnitStateAlive);
+    kbUnitQuerySetIgnoreKnockedOutUnits(rangatiraQueryID, true);
+    kbUnitQuerySetPlayerRelation(rangatiraQueryID, -1);
+    kbUnitQuerySetPlayerID(rangatiraQueryID, cMyID, false);
+  }
+
+  static bool isRecoveryMode = false;
+
+  kbUnitQueryResetResults(rangatiraQueryID);
+  if (kbUnitQueryExecute(rangatiraQueryID) == 0) {
+    debug("No Rangatira found. Cannot explore.");
+    return;
+  }
+
+  int rangatiraID = kbUnitQueryGetResult(rangatiraQueryID, 0);
+  vector rangatiraPos = kbUnitGetPosition(rangatiraID);
+
+  int mainBaseID = kbBaseGetMainID(cMyID);
+  vector mainBasePos = kbBaseGetLocation(cMyID, mainBaseID);
+
+  bool isAwayFromBase = xsVectorLength(mainBasePos - rangatiraPos) > 20.0;
+
+  if (kbUnitGetPlanID(rangatiraID) >= 0) {
+    return;
+  }
+
+  if (isRecoveryMode == true && kbUnitGetHealth(rangatiraID) < 0.95) {
+    if (isAwayFromBase == true) {
+      aiTaskUnitMove(rangatiraID, mainBasePos);
+    }
+    return;
+  }
+
+  isRecoveryMode = false;
+
+  if (kbUnitGetHealth(rangatiraID) < 0.4) {
+    if (isAwayFromBase == true) {
+      aiTaskUnitMove(rangatiraID, mainBasePos);
+    }
+    
+    isRecoveryMode = true;
+    return;
+  }
+
+  if (kbGetAge() >= cAge3) {
+    if (isAwayFromBase == true) {
+      aiTaskUnitMove(rangatiraID, mainBasePos);
+    }
+    return;
+  }
+
+  if (getUnitCountByLocation(cUnitTypeBuilding, cPlayerRelationEnemyNotGaia, rangatiraPos, 50.0) >= 1) {
+    if (isAwayFromBase == true) {
+      aiTaskUnitMove(rangatiraID, mainBasePos);
+    }
+    return;
+  }
+    
+  if (getUnitCountByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, rangatiraPos, 50.0) >= 2) {
+    if (isAwayFromBase == true) {
+      aiTaskUnitMove(rangatiraID, mainBasePos);
+    }
+    return;
+  }
+
+  for(i = 0 ; < kbUnitCount(0, cUnitTypeHerdable, cUnitStateAlive)) {
+    int herdableID = getUnitByPos1(cUnitTypeHerdable, 0, rangatiraPos, 80.0, i);
+    vector herdablePos = kbUnitGetPosition(herdableID);
+    
+    if (kbCanPath2(rangatiraPos, herdablePos, cUnitTypeRangatira) == false) {
+      continue;
+    }
+    
+    aiTaskUnitMove(rangatiraID, herdablePos);
+    return;
+  }
+
+  for(i = 0 ; < kbUnitCount(0, cUnitTypeAbstractNuggetLand, cUnitStateAlive))
+  {
+    int nuggetID = getUnitByPos1(cUnitTypeAbstractNuggetLand, 0, rangatiraPos, 2000.0, i);
+    vector nuggetPos = kbUnitGetPosition(nuggetID);
+    if (kbCanPath2(rangatiraPos, nuggetPos, cUnitTypeRangatira) == false) {
+      continue;
+    }
+    if (getUnitCountByLocation(cUnitTypeBuilding, cPlayerRelationEnemyNotGaia, nuggetPos, 50.0) >= 1) {
+      continue;
+    }
+    if ((kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetBearTree) || 
+        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetKidnap) || 
+        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetKidnapBrit) || 
+        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetPirate) || 
+        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetWolfMissionary) || 
+        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetWolfRock) || 
+        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeNuggetWolfTreebent) || 
+        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeypNuggetKidnapAsian) || 
+        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeypNuggetPirateAsian) || 
+        (kbUnitGetProtoUnitID(nuggetID) == cUnitTypeypNuggetTreeAsian))
+    {
+      if (getUnitCountByLocation(cUnitTypeConvertsHerds, 0, nuggetPos, 20.0) == 0) {
+        continue;
+      }
+    }
+
+    int guardianCount = 0;
+    int maxGuardians = 1;
+    if (kbGetAge() == cAge3) {
+      maxGuardians = 2;
+    }
+    if (kbGetAge() >= cAge4) {
+      maxGuardians = 3;
+    }
+
+    for(j = 0 ; < getUnitCountByLocation(cUnitTypeGuardian, 0, nuggetPos, 20.0))
+    {
+      int guardianID = getUnitByPos2(cUnitTypeGuardian, 0, nuggetPos, 20.0, j);
+      if (kbUnitIsDead(guardianID) == true) {
+        continue;
+      }
+      guardianCount++;
+    }
+
+    if (guardianCount == 0)
+    {
+      aiTaskUnitWork(rangatiraID, nuggetID);
+      return;
+    }
+
+    if (guardianCount <= maxGuardians)
+    {
+      aiTaskUnitWork(rangatiraID, getUnitByPos2(cUnitTypeGuardian, 0, nuggetPos, 20.0, 0));
+      return;
+    }
+  }
+
+  if ((kbUnitIsType(kbUnitGetTargetUnitID(rangatiraID), cUnitTypeGuardian) == true) && 
+      (kbUnitGetPlayerID(kbUnitGetTargetUnitID(rangatiraID)) == 0)) 
+  {
+    return;
+  }
+  if (kbUnitIsType(kbUnitGetTargetUnitID(rangatiraID), cUnitTypeAbstractNugget) == true) {
+    return;
+  }
+  if (kbUnitGetActionType(rangatiraID) == 9) {
+    return;
+  }
+  if (kbUnitGetActionType(rangatiraID) == 0) {
+    return;
+  }
+  if (kbUnitGetPlanID(rangatiraID) >= 0) {
+    return;
+  }
+
+  aiTaskUnitMove(rangatiraID, aiRandLocation());
+}
