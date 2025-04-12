@@ -375,7 +375,7 @@ minInterval 1
     vector herdablePos = kbUnitGetPosition(herdableID);
 
     if (kbUnitIsInventoryFull(herdableID) == true && xsVectorLength(herdablePos - mainBasePos) > cDistanceFromBuilding) {
-      aiTaskUnitMove(herdableID, mainBasePos + xsVectorNormalize(herdablePos - mainBasePos) * cDistanceFromBuilding);
+      aiTaskUnitMove(herdableID, mainBasePos + xsVectorNormalize(herdablePos - mainBasePos) * (cDistanceFromBuilding - 2));
       continue;
     }
     if (kbUnitGetTargetUnitID(herdableID) >= 0) {
@@ -413,7 +413,7 @@ minInterval 1
       if (xsVectorLength(herdablePos - buildingPos) < cDistanceFromBuilding) {
         continue;
       }
-      aiTaskUnitMove(herdableID, buildingPos + xsVectorNormalize(herdablePos - buildingPos) * cDistanceFromBuilding);
+      aiTaskUnitMove(herdableID, buildingPos + xsVectorNormalize(herdablePos - buildingPos) * (cDistanceFromBuilding - 2));
       break;
     }
   }
