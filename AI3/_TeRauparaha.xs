@@ -129,7 +129,7 @@ void handleStartingPaState(int planID = -1) {
   kbBaseSetFrontVector(cMyID, mainBaseID, baseFront);
   kbBaseSetActive(cMyID, mainBaseID, true);
 
-  // TODO -- Now let activities begin!
+  xsEnableRule("VillagerProduction");
 }
 
 void main(void) {
@@ -412,5 +412,43 @@ minInterval 1
       aiTaskUnitMove(herdableID, buildingPos + xsVectorNormalize(herdablePos - buildingPos) * cDistanceFromBuilding);
       break;
     }
+  }
+}
+
+rule VillagerProduction
+inactive
+minInterval 1
+runImmediately
+{
+  const int cNumberVillagersToMaintain = 80;
+  int planID = -1;
+  int paID = -1;
+
+  for(i = 0; < aiPlanGetNumber(cPlanTrain)) {
+    planID = aiPlanGetIDByIndex(cPlanTrain, -1, true, i);
+    paID = aiPlanGetVariableInt(cPlanTrain, cTrainPlanBuildingID, 0);
+    if (kbUnitIsDead(paID) == true) {
+      aiPlanDestroy(planID);
+      continue;
+    }
+    if (kbBaseGetUnderAttack(cMyID, kbUnitGetBaseID(paID)) == true) {
+      aiPlanSetVariableInt(planID, cTrainPlanNumberToMaintain, 0, 0);
+    } else {
+      aiPlanSetVariableInt(planID, cTrainPlanNumberToMaintain, 0, cNumberVillagersToMaintain);
+    }
+  }
+
+  for (i = 0; < kbUnitCount(cMyID, cUnitTypeMaoriPa, cUnitStateAlive)) {
+    paID = getUnit1(cUnitTypeMaoriPa, cMyID, i);
+    if (aiPlanGetIDByTypeAndVariableType(cPlanTrain, cTrainPlanBuildingID, paID, true) >= 0) {
+      continue;
+    }
+    planID = aiPlanCreate("Villager Production " + paID, cPlanTrain);
+    aiPlanSetVariableInt(planID, cTrainPlanUnitType, 0, cUnitTypePOLYvillager);
+    aiPlanSetVariableInt(planID, cTrainPlanNumberToMaintain, 0, cNumberVillagersToMaintain);
+    aiPlanSetVariableInt(planID, cTrainPlanBatchSize, 0, 1);
+    aiPlanSetVariableInt(planID, cTrainPlanBuildingID, 0, paID);
+    aiPlanSetVariableBool(planID, cTrainPlanUseMultipleBuildings, 0, false);
+    aiPlanSetActive(planID, true);
   }
 }
