@@ -26,16 +26,16 @@ void debug(string message = "") {
   xsSetContextPlayer(cMyID);
 }
 
-void set(string key = "") {
-  xsQVSet(key, 1);
+void set(string value = "") {
+  xsQVSet(value, 1);
 }
 
-void unset(string key = "") {
-  xsQVSet(key, 0);
+void unset(string value = "") {
+  xsQVSet(value, 0);
 }
 
-bool isset(string key = "") {
-  return(xsQVGet(key) > 0);
+bool isset(string value = "") {
+  return(xsQVGet(value) > 0);
 }
 
 bool isPlannedForConstruction(int unitTypeID = -1) {
