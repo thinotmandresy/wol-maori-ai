@@ -1,5 +1,7 @@
 extern const string QV_ColonyEstablished = "Colony Established";
 extern const string QV_UnitPickerID = "Unit Picker ID";
+extern const string QV_TownBell = "Town Bell";
+extern const string QV_TownBellBuilding = "Town Bell Building";
 
 include "include/query.xs";
 include "include/comm.xs";
@@ -130,6 +132,8 @@ void handleStartingPaState(int planID = -1) {
   kbBaseSetActive(cMyID, mainBaseID, true);
 
   xsEnableRule("VillagerProduction");
+  xsEnableRule("TownBellCall");
+  xsEnableRule("TownBellReturnToWork");
 }
 
 void main(void) {
@@ -450,5 +454,100 @@ runImmediately
     aiPlanSetVariableInt(planID, cTrainPlanBuildingID, 0, paID);
     aiPlanSetVariableBool(planID, cTrainPlanUseMultipleBuildings, 0, false);
     aiPlanSetActive(planID, true);
+  }
+}
+
+rule TownBellCall
+inactive
+minInterval 1
+{
+  bool isAnyEnemyInAge2 = false;
+  for (playerID = 0; < cNumberPlayers) {
+    if (kbGetPlayerTeam(playerID) == kbGetPlayerTeam(cMyID)) {
+      continue;
+    }
+    if (kbGetAgeForPlayer(playerID) >= cAge2) {
+      isAnyEnemyInAge2 = true;
+      break;
+    }
+  }
+
+  if (isAnyEnemyInAge2 == false) {
+    return;
+  }
+
+  int villagerCount = kbUnitCount(cMyID, cUnitTypeLogicalTypeAffectedByTownBell, cUnitStateAlive);
+  int villagerID = -1;
+  vector villagerPos = cInvalidVector;
+  int paID = -1;
+  vector paPos = cInvalidVector;
+
+  for(i = 0; < villagerCount) {
+    villagerID = getUnit1(cUnitTypeLogicalTypeAffectedByTownBell, cMyID, i);
+    villagerPos = kbUnitGetPosition(villagerID);
+    if (kbUnitGetMovementType(kbUnitGetProtoUnitID(villagerID)) != cMovementTypeLand) {
+      continue;
+    }
+    if (kbUnitGetNumberWorkers(villagerID) >= 1) {
+      set(QV_TownBell + villagerID);
+    }
+    if (getUnitCountByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, villagerPos, 16.0) >= 3) {
+      set(QV_TownBell + villagerID);
+    }
+
+    if (isset(QV_TownBell + villagerID) == false) {
+      continue;
+    }
+
+    bool wasVillagerAffected = true;
+    for (j = 0; < kbUnitCount(cMyID, cUnitTypeMaoriPa, cUnitStateAlive)) {
+      paID = getUnitByPos1(cUnitTypeMaoriPa, cMyID, villagerPos, 2000.0, j);
+      paPos = kbUnitGetPosition(paID);
+      if (kbCanPath2(villagerPos, paPos, kbUnitGetProtoUnitID(villagerID)) == false) {
+        continue;
+      }
+      if (kbUnitGetNumberContained(paID) >= 50) {
+        continue;
+      }
+      aiTaskUnitWork(villagerID, paID);
+      xsQVSet(QV_TownBellBuilding + villagerID, paID);
+      wasVillagerAffected = false;
+      break;
+    }
+    if (wasVillagerAffected == false) {
+      xsQVSet(QV_TownBellBuilding + villagerID, 0);
+    }
+  }
+}
+
+rule TownBellReturnToWork
+inactive
+minInterval 1
+{
+  int villagerCount = kbUnitCount(cMyID, cUnitTypeLogicalTypeAffectedByTownBell, cUnitStateAlive);
+  int villagerID = -1;
+  vector villagerPos = cInvalidVector;
+  int paID = -1;
+  vector paPos = cInvalidVector;
+
+  for (i = 0; < villagerCount) {
+    villagerID = getUnit1(cUnitTypeLogicalTypeAffectedByTownBell, cMyID, i);
+    villagerPos = kbUnitGetPosition(villagerID);
+    if (kbUnitIsContainedInType(villagerID, "MaoriPa") == false) {
+      if (isset(QV_TownBell + villagerID) == false) {
+        continue;
+      }
+      if (kbUnitIsDead(xsQVGet(QV_TownBellBuilding + villagerID)) == true) {
+        unset(QV_TownBell + villagerID);
+        xsQVSet(QV_TownBellBuilding + villagerID, 0);
+        aiTaskUnitMove(villagerID, villagerPos);
+      }
+      continue;
+    }
+    if (getUnitCountByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, villagerPos, 30.0) <= 2) {
+      unset(QV_TownBell + villagerID);
+      paID = getUnitByPos1(cUnitTypeMaoriPa, cMyID, villagerPos, 10.0, i);
+      aiTaskUnitEjectContained(paID);
+    }
   }
 }
