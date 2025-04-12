@@ -351,3 +351,66 @@ minInterval 5
 
   aiRansomExplorer(rangatiraID, cRootEscrowID, paID);
 }
+
+rule LivestockHerding
+active
+minInterval 1
+{
+  const float cAutoConvertRange = 16.0;
+  const float cDistanceFromBuilding = 12.0;
+  const int cMaxLivestockPerPen = 10;
+
+  int mainBaseID = kbBaseGetMainID(cMyID);
+  vector mainBasePos = kbBaseGetLocation(cMyID, mainBaseID);
+
+  int buildingID = -1;
+  vector buildingPos = cInvalidVector;
+
+  for(i = 0; < kbUnitCount(cMyID, cUnitTypeHerdable, cUnitStateAlive)) {
+    int herdableID = getUnitByPos1(cUnitTypeHerdable, cMyID, mainBasePos, 5000.0, i);
+    vector herdablePos = kbUnitGetPosition(herdableID);
+
+    if (kbUnitIsInventoryFull(herdableID) == true && xsVectorLength(herdablePos - mainBasePos) > cDistanceFromBuilding) {
+      aiTaskUnitMove(herdableID, mainBasePos + xsVectorNormalize(herdablePos - mainBasePos) * cDistanceFromBuilding);
+      continue;
+    }
+    if (kbUnitGetTargetUnitID(herdableID) >= 0) {
+      continue;
+    }
+    if (kbUnitGetActionType(herdableID) == 9) {
+      continue;
+    }
+
+    bool assigned = false;
+    for (j = 0; < kbUnitCount(cMyID, cUnitTypeLivestockPen, cUnitStateAlive)) {
+      buildingID = getUnitByPos2(cUnitTypeLivestockPen, cMyID, herdablePos, 5000.0, j);
+      buildingPos = kbUnitGetPosition(buildingID);
+      if (kbUnitGetNumberWorkers(buildingID) >= cMaxLivestockPerPen) {
+        continue;
+      }
+      if (kbCanPath2(herdablePos, buildingPos, kbUnitGetProtoUnitID(herdableID)) == false) {
+        continue;
+      }
+      aiTaskUnitWork(herdableID, buildingID);
+      assigned = true;
+      break;
+    }
+
+    if (assigned == true) {
+      continue;
+    }
+
+    for (j = 0; < kbUnitCount(cMyID, cUnitTypeLogicalTypeBuildingsNotWalls, cUnitStateAlive)) {
+      buildingID = getUnitByPos2(cUnitTypeLogicalTypeBuildingsNotWalls, cMyID, herdablePos, 5000.0, j);
+      buildingPos = kbUnitGetPosition(buildingID);
+      if (kbCanPath2(herdablePos, buildingPos, kbUnitGetProtoUnitID(herdableID)) == false) {
+        continue;
+      }
+      if (xsVectorLength(herdablePos - buildingPos) < cDistanceFromBuilding) {
+        continue;
+      }
+      aiTaskUnitMove(herdableID, buildingPos + xsVectorNormalize(herdablePos - buildingPos) * cDistanceFromBuilding);
+      break;
+    }
+  }
+}
