@@ -35,3 +35,17 @@ bool isset(string value = "") {
 bool isPlannedForConstruction(int unitTypeID = -1) {
   return(aiPlanGetIDByTypeAndVariableType(cPlanBuild, cBuildPlanBuildingTypeID, unitTypeID, true) >= 0);
 }
+
+float min(float a = 0.0, float b = 0.0) {
+  if (a < b) {
+    return(a);
+  }
+  return(b);
+}
+
+float max(float a = 0.0, float b = 0.0) {
+  if (a > b) {
+    return(a);
+  }
+  return(b);
+}
