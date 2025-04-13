@@ -555,3 +555,156 @@ minInterval 1
     }
   }
 }
+
+rule GathererAllocation
+active
+minInterval 10
+runImmediately
+{
+  aiSetResourceGathererPercentageWeight(cRGPScript, 1.0);
+  aiSetResourceGathererPercentageWeight(cRGPCost, 0.0);
+  aiNormalizeResourceGathererPercentageWeights();
+
+  const float cMaxResourceDistance = 100.0;
+  const float cMinWoodPerGatherer = 100.0;
+
+  float currentFood = kbResourceGet(cResourceFood);
+  float currentWood = kbResourceGet(cResourceWood);
+  float currentGold = kbResourceGet(cResourceGold);
+  float currentTotal = currentFood + currentWood + currentGold;
+
+  float needFood = 0.0;
+  float needWood = 0.0;
+  float needGold = 0.0;
+  float needTotal = 0.0;
+
+  float shortfallFood = 0.0;
+  float shortfallWood = 0.0;
+  float shortfallGold = 0.0;
+  float shortfallTotal = 0.0;
+
+  float rgpFood = 0.333333;
+  float rgpWood = 0.333333;
+  float rgpGold = 0.333334;
+
+  int planID = -1;
+  int techID = -1;
+  int protounitID = -1;
+
+  for (i = 0; < aiPlanGetNumber()) {
+    planID = aiPlanGetIDByIndex(-1, -1, true, i);
+
+    if (aiPlanGetState(planID) == cPlanStateResearch) {
+      continue;
+    }
+    if (aiPlanGetState(planID) == cPlanStateBuild) {
+      continue;
+    }
+
+    switch(aiPlanGetType(planID)) {
+      case cPlanResearch: {
+        techID = aiPlanGetVariableInt(planID, cResearchPlanTechID, 0);
+        needFood = needFood + kbTechCostPerResource(techID, cResourceFood);
+        needWood = needWood + kbTechCostPerResource(techID, cResourceWood);
+        needGold = needGold + kbTechCostPerResource(techID, cResourceGold);
+        break;
+      }
+      case cPlanBuild: {
+        protounitID = aiPlanGetVariableInt(planID, cBuildPlanBuildingTypeID, 0);
+        needFood = needFood + kbUnitCostPerResource(protounitID, cResourceFood);
+        needWood = needWood + kbUnitCostPerResource(protounitID, cResourceWood);
+        needGold = needGold + kbUnitCostPerResource(protounitID, cResourceGold);
+        break;
+      }
+      case cPlanTrain: {
+        protounitID = aiPlanGetVariableInt(planID, cTrainPlanUnitType, 0);
+        int currentCount = kbUnitCount(cMyID, protounitID, cUnitStateABQ);
+        int numberToMaintain = aiPlanGetVariableInt(planID, cTrainPlanNumberToMaintain, 0);
+        int shortfall = max(0, numberToMaintain - currentCount);
+
+        if (kbProtoUnitIsType(cMyID, protounitID, cUnitTypeAbstractVillager)) {
+          shortfall = max(3, kbUnitCount(cMyID, cUnitTypeMaoriPa, cUnitStateAlive));
+        }
+        if (kbProtoUnitIsType(cMyID, protounitID, cUnitTypeLogicalTypeLandMilitary)) {
+          shortfall = 6 + kbGetAge();
+        }
+
+        needGold = needGold + kbUnitCostPerResource(protounitID, cResourceGold) * shortfall;
+        needWood = needWood + kbUnitCostPerResource(protounitID, cResourceWood) * shortfall;
+        needFood = needFood + kbUnitCostPerResource(protounitID, cResourceFood) * shortfall;
+        break;
+      }
+    }
+  }
+
+  needTotal = needFood + needWood + needGold;
+
+  shortfallFood = max(0, needFood - currentFood);
+  shortfallWood = max(0, needWood - currentWood);
+  shortfallGold = max(0, needGold - currentGold);
+  shortfallTotal = shortfallFood + shortfallWood + shortfallGold;
+
+  // Special case: we already have enough resources for everything we're planning.
+  if (shortfallTotal < 0.1) {
+
+    // If inventory is empty, distribute gatherers equally.
+    if (currentTotal < 0.1) {
+      rgpFood = 0.333333;
+      rgpWood = 0.333333;
+      rgpGold = 0.333334;
+    } else {
+      // Otherwise, makes resources catch up with each other.
+      rgpFood = 1.0 - currentFood / currentTotal;
+      rgpWood = 1.0 - currentWood / currentTotal;
+      rgpGold = 1.0 - currentGold / currentTotal;
+    }
+  } else {
+    // Normal case. Gather the most needed resources.
+    rgpFood = shortfallFood / shortfallTotal;
+    rgpWood = shortfallWood / shortfallTotal;
+    rgpGold = shortfallGold / shortfallTotal;
+  }
+
+  int mainBaseID = kbBaseGetMainID(cMyID);
+  int woodGathererCount = rgpWood * kbUnitCount(cMyID, cUnitTypeAbstractVillager, cUnitStateAlive);
+  float validWoodAmount = kbGetAmountValidResources(mainBaseID, cResourceWood, cAIResourceSubTypeEasy, cMaxResourceDistance);
+  float validWoodPerGatherer = validWoodAmount / woodGathererCount;
+  if (validWoodPerGatherer < cMinWoodPerGatherer) {
+    rgpWood = 0.0;
+  }
+
+  if (kbGetAge() <= cAge2)
+  {
+    // In Age1 and Age2, everyone on food.
+    rgpFood = 1.0;
+    rgpWood = 0.0;
+    rgpGold = 0.0;
+
+    // While aging up, prepare resources for the next age.
+    if (isAgingUp() && (kbResourceGet(cResourceWood) < 700.0 || kbResourceGet(cResourceGold) < 50.0))
+    {
+      rgpFood = 0.5;
+      rgpWood = 0.5;
+      rgpGold = 0.0;
+
+      if (kbResourceGet(cResourceWood) >= 700.0)
+      {
+        rgpFood = 0.0;
+        rgpWood = 0.0;
+        rgpGold = 1.0;
+      }
+
+      if (kbResourceGet(cResourceGold) >= 50.0)
+      {
+        rgpFood = 0.0;
+        rgpWood = 1.0;
+        rgpGold = 0.0;
+      }
+    }
+  }
+
+  aiSetResourceGathererPercentage(cResourceFood, rgpFood);
+  aiSetResourceGathererPercentage(cResourceWood, rgpWood);
+  aiSetResourceGathererPercentage(cResourceGold, rgpGold);
+  aiNormalizeResourceGathererPercentages();
+}
