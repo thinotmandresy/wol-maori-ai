@@ -2,6 +2,10 @@ extern const string QV_ColonyEstablished = "Colony Established";
 extern const string QV_UnitPickerID = "Unit Picker ID";
 extern const string QV_TownBell = "Town Bell";
 extern const string QV_TownBellBuilding = "Town Bell Building";
+extern const string QV_TrackedResource = "Tracked Resource";
+extern const string QV_TrackedResourceNumWorkers = "Tracked Resource Number Workers";
+
+extern const float cResourceUnsafeDistance = 40.0;
 
 include "include/query.xs";
 include "include/comm.xs";
@@ -707,4 +711,574 @@ runImmediately
   aiSetResourceGathererPercentage(cResourceWood, rgpWood);
   aiSetResourceGathererPercentage(cResourceGold, rgpGold);
   aiNormalizeResourceGathererPercentages();
+}
+
+bool isTerritorialViolation(vector point = cInvalidVector) {
+  const float cSameBaseThreshold = 0.0;
+  const float cAllyResourceDistance = 0.0;
+
+  int closestAllyTownCenterID = -1;
+  for(i = 0; < getUnitCountByLocation(cUnitTypeAbstractTownCenter, cPlayerRelationAlly, point, 5000.0)) {
+    int allyTownCenterID = getUnitByPos1(cUnitTypeAbstractTownCenter, cPlayerRelationAlly, point, 5000.0, i);
+    if (kbUnitGetPlayerID(allyTownCenterID) != cMyID) {
+      closestAllyTownCenterID = allyTownCenterID;
+      break;
+    }
+  }
+  if (closestAllyTownCenterID == -1) {
+    return(false);
+  }
+  vector closestAllyTownCenterPos = kbUnitGetPosition(closestAllyTownCenterID);
+  int myClosestTownCenterUnitFromAlly = getUnitByPos1(cUnitTypeMaoriPa, cMyID, closestAllyTownCenterPos, 5000.0, 0);
+  vector myClosestTownCenterPositionFromAlly = kbUnitGetPosition(myClosestTownCenterUnitFromAlly);
+
+  return(
+    xsVectorLength(closestAllyTownCenterPos - myClosestTownCenterPositionFromAlly) > cSameBaseThreshold &&
+    xsVectorLength(point - closestAllyTownCenterPos) < cAllyResourceDistance
+  );
+}
+
+bool isResourceUnitViable(int resourceUnitID = -1) {
+  if (kbUnitGetCurrentInventory(resourceUnitID, cResourceGold) < 0.1 && 
+      kbUnitGetCurrentInventory(resourceUnitID, cResourceWood) < 0.1 && 
+      kbUnitGetCurrentInventory(resourceUnitID, cResourceFood) < 0.1)
+  {
+    return(false);
+  }
+
+  if (kbUnitGetPlayerID(resourceUnitID) != 0 && kbUnitGetPlayerID(resourceUnitID) != cMyID) {
+    return(false);
+  }
+
+  vector resourceUnitPos = kbUnitGetPosition(resourceUnitID);
+
+  if (kbUnitIsType(resourceUnitID, cUnitTypeHerdable) == true && kbUnitIsInventoryFull(resourceUnitID) == false) {
+    return(false);
+  }
+
+  bool isShrined = false;
+  if (kbUnitIsType(resourceUnitID, cUnitTypeHuntable) == true) {
+    xsSetContextPlayer(0);
+    isShrined = kbProtoUnitIsType(cMyID, kbUnitGetProtoUnitID(kbUnitGetTargetUnitID(resourceUnitID)), cUnitTypeAbstractShrine);
+    xsSetContextPlayer(cMyID);
+    return(isShrined == false);
+  }
+
+  if (kbUnitIsType(resourceUnitID, cUnitTypeHerdable) == true) {
+    xsSetContextPlayer(0);
+    isShrined = kbProtoUnitIsType(cMyID, 
+    kbUnitGetProtoUnitID(kbUnitGetTargetUnitID(resourceUnitID)), cUnitTypeAbstractShrine);
+    xsSetContextPlayer(cMyID);
+    return(isShrined == false);
+  }
+
+  if (getUnitCountByLocation(cUnitTypeMilitaryBuilding, cPlayerRelationEnemyNotGaia, resourceUnitPos, cResourceUnsafeDistance) >= 1) {
+    return(false);
+  }
+
+  if (getUnitCountByLocation(cUnitTypeLogicalTypeNavalMilitary, cPlayerRelationEnemyNotGaia, resourceUnitPos, cResourceUnsafeDistance) >= 1) {
+    return(false);
+  }
+
+  if (getUnitCountByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, resourceUnitPos, cResourceUnsafeDistance) >= 3) {
+    return(false);
+  }
+
+  return(true);
+}
+
+rule ResourceGathering
+active
+minInterval 5
+{
+  // TODO -- Unhardcode these values
+  const float cMaxResourceDistance = 150.0;
+  const int cMaxGatherersPerResourceUnit = 8;
+  const int cMaxGatherersPerKumaraField = 15;
+  const int cMaxGatherersPerMine = 20;
+
+  int gathererCount = kbUnitCount(cMyID, cUnitTypeAbstractVillager, cUnitStateAlive);
+  int allocatedFoodGatherers = gathererCount * aiGetResourceGathererPercentage(cResourceFood, cRGPActual);
+  int allocatedWoodGatherers = gathererCount * aiGetResourceGathererPercentage(cResourceWood, cRGPActual);
+  int allocatedGoldGatherers = gathererCount - allocatedFoodGatherers - allocatedWoodGatherers;
+  int allocatedCrateGatherers = 3;
+
+  int gathererID = -1;
+  vector gathererPos = cInvalidVector;
+  int resourceUnitID = -1;
+  vector resourceUnitPos = cInvalidVector;
+  int temp = 0;
+  int targetFoodUnit = -1;
+  int targetWoodUnit = -1;
+  int targetGoldUnit = -1;
+
+  int mainBaseID = kbBaseGetMainID(cMyID);
+  vector mainBasePos = kbBaseGetLocation(cMyID, mainBaseID);
+
+  static int sTrackedResourceArray = -1;
+  int trackedResourceCount = 0;
+  if (sTrackedResourceArray == -1) {
+    sTrackedResourceArray = xsArrayCreateInt(1000, -1, "Tracked Resources (Resource Gathering)");
+  }
+
+  static int deadAnimalQueryID = -1;
+  static int aliveAnimalQueryID = -1;
+  static int fruitQueryID = -1;
+  static int buildingQueryID = -1;
+  static int treeQueryID = -1;
+  static int mineQueryID = -1;
+  static int sandalwoodQueryID = -1;
+
+  if (deadAnimalQueryID == -1) {
+    deadAnimalQueryID = kbGaiaUnitQueryCreate("Dead Animal Query (Resource Gathering)");
+    kbGaiaUnitQuerySetUnitType(deadAnimalQueryID, cUnitTypeAnimalPrey);
+    kbGaiaUnitQuerySetPlayerRelation(deadAnimalQueryID, -1);
+    kbGaiaUnitQuerySetPlayerID(deadAnimalQueryID, 0, false);
+    kbGaiaUnitQuerySetActionType(deadAnimalQueryID, 1);
+    kbGaiaUnitQuerySetAscendingSort(deadAnimalQueryID, true);
+    kbGaiaUnitQuerySetMaximumDistance(deadAnimalQueryID, cMaxResourceDistance);
+
+    aliveAnimalQueryID = kbUnitQueryCreate("Alive Animal Query (Resource Gathering)");
+    kbUnitQuerySetUnitType(aliveAnimalQueryID, cUnitTypeAnimalPrey);
+    kbUnitQuerySetPlayerID(aliveAnimalQueryID, -1, false);
+    kbUnitQuerySetPlayerRelation(aliveAnimalQueryID, cPlayerRelationAny);
+    kbUnitQuerySetState(aliveAnimalQueryID, cUnitStateAlive);
+    kbUnitQuerySetIgnoreKnockedOutUnits(aliveAnimalQueryID, true);
+    kbUnitQuerySetAscendingSort(aliveAnimalQueryID, true);
+    kbUnitQuerySetMaximumDistance(aliveAnimalQueryID, cMaxResourceDistance);
+
+    fruitQueryID = kbUnitQueryCreate("Fruit Query (Resource Gathering)");
+    kbUnitQuerySetUnitType(fruitQueryID, cUnitTypeAbstractFruit);
+    kbUnitQuerySetPlayerID(fruitQueryID, -1, false);
+    kbUnitQuerySetPlayerRelation(fruitQueryID, cPlayerRelationAny);
+    kbUnitQuerySetState(fruitQueryID, cUnitStateAlive);
+    kbUnitQuerySetIgnoreKnockedOutUnits(fruitQueryID, true);
+    kbUnitQuerySetAscendingSort(fruitQueryID, true);
+    kbUnitQuerySetMaximumDistance(fruitQueryID, cMaxResourceDistance);
+
+    buildingQueryID = kbUnitQueryCreate("Building Query (Resource Gathering)");
+    kbUnitQuerySetUnitType(buildingQueryID, cUnitTypeLogicalTypeBuildingsNotWalls);
+    kbUnitQuerySetPlayerRelation(buildingQueryID, -1);
+    kbUnitQuerySetPlayerID(buildingQueryID, cMyID, false);
+    kbUnitQuerySetState(buildingQueryID, cUnitStateAlive);
+    kbUnitQuerySetIgnoreKnockedOutUnits(buildingQueryID, true);
+    kbUnitQuerySetAscendingSort(buildingQueryID, true);
+    kbUnitQuerySetMaximumDistance(buildingQueryID, cMaxResourceDistance);
+
+    treeQueryID = kbUnitQueryCreate("Tree Query (Resource Gathering)");
+    kbUnitQuerySetUnitType(treeQueryID, cUnitTypeTree);
+    kbUnitQuerySetPlayerRelation(treeQueryID, -1);
+    kbUnitQuerySetPlayerID(treeQueryID, 0, false);
+    kbUnitQuerySetState(treeQueryID, cUnitStateAlive);
+    kbUnitQuerySetIgnoreKnockedOutUnits(treeQueryID, true);
+    kbUnitQuerySetAscendingSort(treeQueryID, true);
+    kbUnitQuerySetMaximumDistance(treeQueryID, cMaxResourceDistance);
+
+    mineQueryID = kbUnitQueryCreate("Mine Query (Resource Gathering)");
+    kbUnitQuerySetUnitType(mineQueryID, cUnitTypeMinedResource);
+    kbUnitQuerySetPlayerRelation(mineQueryID, -1);
+    kbUnitQuerySetPlayerID(mineQueryID, 0, false);
+    kbUnitQuerySetState(mineQueryID, cUnitStateAlive);
+    kbUnitQuerySetIgnoreKnockedOutUnits(mineQueryID, true);
+    kbUnitQuerySetAscendingSort(mineQueryID, true);
+    kbUnitQuerySetMaximumDistance(mineQueryID, cMaxResourceDistance);
+
+    sandalwoodQueryID = kbUnitQueryCreate("Sandalwood Query (Resource Gathering)");
+    kbUnitQuerySetUnitType(sandalwoodQueryID, cUnitTypeTreeSandalwood);
+    kbUnitQuerySetPlayerRelation(sandalwoodQueryID, -1);
+    kbUnitQuerySetPlayerID(sandalwoodQueryID, cMyID, false);
+    kbUnitQuerySetState(sandalwoodQueryID, cUnitStateAlive);
+    kbUnitQuerySetIgnoreKnockedOutUnits(sandalwoodQueryID, true);
+    kbUnitQuerySetAscendingSort(sandalwoodQueryID, true);
+    kbUnitQuerySetMaximumDistance(sandalwoodQueryID, cMaxResourceDistance);
+  }
+
+  kbGaiaUnitQueryResetResults(deadAnimalQueryID);
+  kbGaiaUnitQuerySetPosition(deadAnimalQueryID, mainBasePos);
+  kbGaiaUnitQuerySetMaximumDistance(deadAnimalQueryID, cMaxResourceDistance);
+  int deadAnimalCount = kbGaiaUnitQueryExecute(deadAnimalQueryID);
+
+  kbUnitQueryResetResults(aliveAnimalQueryID);
+  kbUnitQuerySetPosition(aliveAnimalQueryID, mainBasePos);
+  int aliveAnimalCount = kbUnitQueryExecute(aliveAnimalQueryID);
+
+  kbUnitQueryResetResults(fruitQueryID);
+  kbUnitQuerySetPosition(fruitQueryID, mainBasePos);
+  int fruitCount = kbUnitQueryExecute(fruitQueryID);
+
+  kbUnitQueryResetResults(buildingQueryID);
+  kbUnitQuerySetPosition(buildingQueryID, mainBasePos);
+  int buildingCount = kbUnitQueryExecute(buildingQueryID);
+
+  kbUnitQueryResetResults(treeQueryID);
+  kbUnitQuerySetPosition(treeQueryID, mainBasePos);
+  int treeCount = kbUnitQueryExecute(treeQueryID);
+
+  kbUnitQueryResetResults(mineQueryID);
+  kbUnitQuerySetPosition(mineQueryID, mainBasePos);
+  int mineCount = kbUnitQueryExecute(mineQueryID);
+
+  kbUnitQueryResetResults(sandalwoodQueryID);
+  kbUnitQuerySetPosition(sandalwoodQueryID, mainBasePos);
+  int sandalwoodCount = kbUnitQueryExecute(sandalwoodQueryID);
+
+  for(i = 0; < gathererCount) {
+    bool wasGathererAssigned = false;
+    gathererID = getUnit1(cUnitTypeAbstractVillager, cMyID, i);
+    gathererPos = kbUnitGetPosition(gathererID);
+    resourceUnitID = kbUnitGetTargetUnitID(gathererID);
+
+    if (kbUnitGetMovementType(kbUnitGetProtoUnitID(gathererID)) != cMovementTypeLand) {
+      continue;
+    }
+
+    if (kbUnitIsType(resourceUnitID, cUnitTypeAbstractResourceCrate) == true) {
+      if (allocatedCrateGatherers >= 1) {
+        allocatedCrateGatherers--;
+        continue;
+      }
+    }
+
+    if (kbUnitGetCurrentInventory(resourceUnitID, cResourceFood) > 0.1) {
+      if (allocatedFoodGatherers >= 1) {
+        allocatedFoodGatherers--;
+        continue;
+      }
+    }
+
+    if (kbUnitGetCurrentInventory(resourceUnitID, cResourceWood) > 0.1) {
+      if (allocatedWoodGatherers >= 1) {
+        allocatedWoodGatherers--;
+        continue;
+      }
+    }
+
+    if (kbUnitGetCurrentInventory(resourceUnitID, cResourceGold) > 0.1) {
+      if (allocatedGoldGatherers >= 1) {
+        allocatedGoldGatherers--;
+        continue;
+      }
+    }
+
+    if (
+      isset(QV_TownBell + gathererID) == true ||
+      kbUnitGetPlanID(gathererID) >= 0 ||
+      kbUnitIsType(gathererID, cUnitTypeAbstractWagon) == true ||
+      kbUnitIsType(gathererID, cUnitTypeHero) == true ||
+      kbUnitGetActionType(gathererID) == 9 ||
+      kbUnitGetActionType(gathererID) == 0
+    )
+    {
+      continue;
+    }
+
+    targetFoodUnit = -1;
+    targetWoodUnit = -1;
+    targetGoldUnit = -1;
+
+    if (allocatedFoodGatherers >= 1) {
+      temp = 0;
+
+      for (j = 0; < deadAnimalCount) {
+        resourceUnitID = kbGaiaUnitQueryGetResult(deadAnimalQueryID, j);
+        resourceUnitPos = kbUnitGetPosition(resourceUnitID);
+
+        if (
+          isTerritorialViolation(resourceUnitPos) == true ||
+          kbCanPath2(gathererPos, resourceUnitPos, kbUnitGetProtoUnitID(gathererID)) == false ||
+          isResourceUnitViable(resourceUnitID) == false ||
+          kbUnitGetCurrentInventory(resourceUnitID, cResourceFood) < 0.1
+        )
+        {
+          continue;
+        }
+
+        if (isset(QV_TrackedResource + resourceUnitID) == false) {
+          set(QV_TrackedResource + resourceUnitID);
+          temp = getUnitCountByLocation(cUnitTypeAbstractVillager, cPlayerRelationAny, resourceUnitPos, 6.0);
+          temp = temp + kbUnitGetNumberTargeters(resourceUnitID);
+          xsQVSet(QV_TrackedResourceNumWorkers + resourceUnitID, temp);
+          xsArraySetInt(sTrackedResourceArray, trackedResourceCount, resourceUnitID);
+          trackedResourceCount++;
+        }
+
+        if (xsQVGet(QV_TrackedResourceNumWorkers + resourceUnitID) >= cMaxGatherersPerResourceUnit) {
+          continue;
+        }
+
+        targetFoodUnit = resourceUnitID;
+        goto lPrioritizeDecayingAnimal;
+        break;
+      }
+    }
+
+    if (allocatedFoodGatherers >= 1) {
+      temp = 0;
+
+      for (j = 0; < aliveAnimalCount) {
+        resourceUnitID = kbUnitQueryGetResult(aliveAnimalQueryID, j);
+        resourceUnitPos = kbUnitGetPosition(resourceUnitID);
+
+        if (
+          isTerritorialViolation(resourceUnitPos) == true ||
+          kbCanPath2(gathererPos, resourceUnitPos, kbUnitGetProtoUnitID(gathererID)) == false ||
+          isResourceUnitViable(resourceUnitID) == false ||
+          kbUnitGetCurrentInventory(resourceUnitID, cResourceFood) < 0.1
+        )
+        {
+          continue;
+        }
+
+        if (isset(QV_TrackedResource + resourceUnitID) == false) {
+          set(QV_TrackedResource + resourceUnitID);
+          if (kbUnitGetPlayerID(resourceUnitID) != cMyID) {
+            temp = getUnitCountByLocation(cUnitTypeAbstractVillager, cPlayerRelationAny, resourceUnitPos, 6.0);
+          } else {
+            temp = kbUnitGetNumberWorkersIfSeeable(resourceUnitID);
+          }
+          temp = temp + kbUnitGetNumberTargeters(resourceUnitID);
+          xsQVSet(QV_TrackedResourceNumWorkers + resourceUnitID, temp);
+          xsArraySetInt(sTrackedResourceArray, trackedResourceCount, resourceUnitID);
+          trackedResourceCount++;
+        }
+
+        if (xsQVGet(QV_TrackedResourceNumWorkers + resourceUnitID) >= cMaxGatherersPerResourceUnit) {
+          continue;
+        }
+
+        targetFoodUnit = resourceUnitID;
+        goto lPrioritizeAliveAnimal;
+        break;
+      }
+    }
+
+    if (allocatedFoodGatherers >= 1) {
+      temp = 0;
+
+      for (j = 0; < fruitCount) {
+        resourceUnitID = kbUnitQueryGetResult(fruitQueryID, j);
+        resourceUnitPos = kbUnitGetPosition(resourceUnitID);
+
+        if (
+          isTerritorialViolation(resourceUnitPos) == true ||
+          kbCanPath2(gathererPos, resourceUnitPos, kbUnitGetProtoUnitID(gathererID)) == false ||
+          isResourceUnitViable(resourceUnitID) == false ||
+          kbUnitGetCurrentInventory(resourceUnitID, cResourceFood) < 0.1
+        )
+        {
+          continue;
+        }
+
+        if (isset(QV_TrackedResource + resourceUnitID) == false) {
+          set(QV_TrackedResource + resourceUnitID);
+          if (kbUnitGetPlayerID(resourceUnitID) != cMyID) {
+            temp = getUnitCountByLocation(cUnitTypeAbstractVillager, cPlayerRelationAny, resourceUnitPos, 6.0);
+          } else {
+            temp = kbUnitGetNumberWorkersIfSeeable(resourceUnitID);
+          }
+          temp = temp + kbUnitGetNumberTargeters(resourceUnitID);
+          xsQVSet(QV_TrackedResourceNumWorkers + resourceUnitID, temp);
+          xsArraySetInt(sTrackedResourceArray, trackedResourceCount, resourceUnitID);
+          trackedResourceCount++;
+        }
+
+        if (xsQVGet(QV_TrackedResourceNumWorkers + resourceUnitID) >= cMaxGatherersPerResourceUnit) {
+          continue;
+        }
+
+        targetFoodUnit = resourceUnitID;
+        goto lPrioritizeFruit;
+        break;
+      }
+    }
+
+    if (allocatedFoodGatherers >= 1) {
+      temp = 0;
+
+      for (j = 0; < buildingCount) {
+        resourceUnitID = kbUnitQueryGetResult(buildingQueryID, j);
+        resourceUnitPos = kbUnitGetPosition(resourceUnitID);
+
+        if (
+          // isTerritorialViolation(resourceUnitPos) == true ||
+          kbCanPath2(gathererPos, resourceUnitPos, kbUnitGetProtoUnitID(gathererID)) == false ||
+          isResourceUnitViable(resourceUnitID) == false ||
+          kbUnitGetCurrentInventory(resourceUnitID, cResourceFood) < 0.1
+        )
+        {
+          continue;
+        }
+
+        if (isset(QV_TrackedResource + resourceUnitID) == false) {
+          set(QV_TrackedResource + resourceUnitID);
+          temp = kbUnitGetNumberWorkersIfSeeable(resourceUnitID);
+          temp = temp + kbUnitGetNumberTargeters(resourceUnitID);
+          xsQVSet(QV_TrackedResourceNumWorkers + resourceUnitID, temp);
+          xsArraySetInt(sTrackedResourceArray, trackedResourceCount, resourceUnitID);
+          trackedResourceCount++;
+        }
+
+        if (kbUnitIsType(resourceUnitID, cUnitTypeKumaraField) == true) {
+          if (xsQVGet(QV_TrackedResourceNumWorkers + resourceUnitID) >= cMaxGatherersPerKumaraField) {
+            continue;
+          }
+        } else {
+          if (xsQVGet(QV_TrackedResourceNumWorkers + resourceUnitID) >= cMaxGatherersPerResourceUnit) {
+            continue;
+          }
+        }
+
+        targetFoodUnit = resourceUnitID;
+        break;
+      }
+    }
+
+    label lPrioritizeDecayingAnimal;
+    label lPrioritizeAliveAnimal;
+    label lPrioritizeFruit;
+
+    if (allocatedWoodGatherers >= 1) {
+      temp = 0;
+
+      for (j = 0; < treeCount) {
+        resourceUnitID = kbUnitQueryGetResult(treeQueryID, j);
+        resourceUnitPos = kbUnitGetPosition(resourceUnitID);
+
+        if (
+          // isTerritorialViolation(resourceUnitPos) == true ||
+          kbCanPath2(gathererPos, resourceUnitPos, kbUnitGetProtoUnitID(gathererID)) == false ||
+          isResourceUnitViable(resourceUnitID) == false ||
+          kbUnitGetCurrentInventory(resourceUnitID, cResourceWood) < 0.1
+        )
+        {
+          continue;
+        }
+
+        if (isset(QV_TrackedResource + resourceUnitID) == false) {
+          set(QV_TrackedResource + resourceUnitID);
+          if (kbUnitGetPlayerID(resourceUnitID) != cMyID) {
+            temp = getUnitCountByLocation(cUnitTypeAbstractVillager, cPlayerRelationAny, resourceUnitPos, 6.0);
+          } else {
+            temp = kbUnitGetNumberWorkersIfSeeable(resourceUnitID);
+          }
+          temp = temp + kbUnitGetNumberTargeters(resourceUnitID);
+          xsQVSet(QV_TrackedResourceNumWorkers + resourceUnitID, temp);
+          xsArraySetInt(sTrackedResourceArray, trackedResourceCount, resourceUnitID);
+          trackedResourceCount++;
+        }
+
+        if (xsQVGet(QV_TrackedResourceNumWorkers + resourceUnitID) >= cMaxGatherersPerResourceUnit) {
+          continue;
+        }
+
+        targetWoodUnit = resourceUnitID;
+        break;
+      }
+    }
+
+    if (allocatedGoldGatherers >= 1) {
+      temp = 0;
+
+      for (j = 0; < mineCount) {
+        resourceUnitID = kbUnitQueryGetResult(mineQueryID, j);
+        resourceUnitPos = kbUnitGetPosition(resourceUnitID);
+
+        if (
+          isTerritorialViolation(resourceUnitPos) == true ||
+          kbCanPath2(gathererPos, resourceUnitPos, kbUnitGetProtoUnitID(gathererID)) == false ||
+          isResourceUnitViable(resourceUnitID) == false ||
+          kbUnitGetCurrentInventory(resourceUnitID, cResourceGold) < 0.1
+        )
+        {
+          continue;
+        }
+
+        if (isset(QV_TrackedResource + resourceUnitID) == false) {
+          set(QV_TrackedResource + resourceUnitID);
+          if (kbUnitGetPlayerID(resourceUnitID) != cMyID) {
+            temp = getUnitCountByLocation(cUnitTypeAbstractVillager, cPlayerRelationAny, resourceUnitPos, 6.0);
+          } else {
+            temp = kbUnitGetNumberWorkersIfSeeable(resourceUnitID);
+          }
+          temp = temp + kbUnitGetNumberTargeters(resourceUnitID);
+          xsQVSet(QV_TrackedResourceNumWorkers + resourceUnitID, temp);
+          xsArraySetInt(sTrackedResourceArray, trackedResourceCount, resourceUnitID);
+          trackedResourceCount++;
+        }
+
+        if (xsQVGet(QV_TrackedResourceNumWorkers + resourceUnitID) >= cMaxGatherersPerMine) {
+          continue;
+        }
+
+        targetGoldUnit = resourceUnitID;
+        goto lPrioritizeMine;
+        break;
+      }
+    }
+
+    if (allocatedGoldGatherers >= 1) {
+      temp = 0;
+
+      for (j = 0; < buildingCount) {
+        resourceUnitID = kbUnitQueryGetResult(buildingQueryID, j);
+        resourceUnitPos = kbUnitGetPosition(resourceUnitID);
+
+        if (
+          // isTerritorialViolation(resourceUnitPos) == true ||
+          kbCanPath2(gathererPos, resourceUnitPos, kbUnitGetProtoUnitID(gathererID)) == false ||
+          isResourceUnitViable(resourceUnitID) == false ||
+          kbUnitGetCurrentInventory(resourceUnitID, cResourceGold) < 0.1
+        )
+        {
+          continue;
+        }
+
+        if (isset(QV_TrackedResource + resourceUnitID) == false) {
+          set(QV_TrackedResource + resourceUnitID);
+          temp = kbUnitGetNumberWorkersIfSeeable(resourceUnitID);
+          temp = temp + kbUnitGetNumberTargeters(resourceUnitID);
+          xsQVSet(QV_TrackedResourceNumWorkers + resourceUnitID, temp);
+          xsArraySetInt(sTrackedResourceArray, trackedResourceCount, resourceUnitID);
+          trackedResourceCount++;
+        }
+
+        if (xsQVGet(QV_TrackedResourceNumWorkers + resourceUnitID) >= cMaxGatherersPerResourceUnit) {
+          continue;
+        }
+
+        targetGoldUnit = resourceUnitID;
+        break;
+      }
+    }
+
+    label lPrioritizeMine;
+
+    float distanceToFood = xsVectorLength(gathererPos - kbUnitGetPosition(targetFoodUnit));
+    float distanceToWood = xsVectorLength(gathererPos - kbUnitGetPosition(targetWoodUnit));
+    float distanceToGold = xsVectorLength(gathererPos - kbUnitGetPosition(targetGoldUnit));
+
+    if (distanceToFood < distanceToWood) {
+      if (distanceToFood < distanceToGold) {
+        aiTaskUnitWork(gathererID, targetFoodUnit);
+        allocatedFoodGatherers--;
+        xsQVSet(QV_TrackedResourceNumWorkers + targetFoodUnit, xsQVGet(QV_TrackedResourceNumWorkers + targetFoodUnit) + 1);
+      } else {
+        aiTaskUnitWork(gathererID, targetGoldUnit);
+        allocatedGoldGatherers--;
+        xsQVSet(QV_TrackedResourceNumWorkers + targetGoldUnit, xsQVGet(QV_TrackedResourceNumWorkers + targetGoldUnit) + 1);
+      }
+    } else if (distanceToWood < distanceToGold) {
+      aiTaskUnitWork(gathererID, targetWoodUnit);
+      allocatedWoodGatherers--;
+      xsQVSet(QV_TrackedResourceNumWorkers + targetWoodUnit, xsQVGet(QV_TrackedResourceNumWorkers + targetWoodUnit) + 1);
+    } else {
+      aiTaskUnitWork(gathererID, targetGoldUnit);
+      allocatedGoldGatherers--;
+      xsQVSet(QV_TrackedResourceNumWorkers + targetGoldUnit, xsQVGet(QV_TrackedResourceNumWorkers + targetGoldUnit) + 1);
+    }
+  }
+
+  for(i = 0; < trackedResourceCount) {
+    unset(QV_TrackedResource + xsArrayGetInt(sTrackedResourceArray, i));
+  }
 }
