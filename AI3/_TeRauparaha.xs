@@ -1279,6 +1279,8 @@ minInterval 5
   }
 
   for(i = 0; < trackedResourceCount) {
-    unset(QV_TrackedResource + xsArrayGetInt(sTrackedResourceArray, i));
+    resourceUnitID = xsArrayGetInt(sTrackedResourceArray, i);
+    unset(QV_TrackedResource + resourceUnitID);
+    xsQVSet(QV_TrackedResourceNumWorkers + resourceUnitID, 0);
   }
 }
