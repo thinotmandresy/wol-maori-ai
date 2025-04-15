@@ -1284,3 +1284,60 @@ minInterval 5
     xsQVSet(QV_TrackedResourceNumWorkers + resourceUnitID, 0);
   }
 }
+
+rule CrateGathering
+active
+minInterval 5
+{
+  int allocatedCrateGatherers = 3;
+  int gathererID = -1;
+  vector gathererPos = cInvalidVector;
+  int resourceUnitID = -1;
+  vector resourceUnitPos = cInvalidVector;
+
+  for(i = 0; < getUnitCountByLocation(cUnitTypeAbstractResourceCrate, cPlayerRelationAny, kbGetMapCenter(), 5000.0)) {
+    resourceUnitID = getUnit1(cUnitTypeAbstractResourceCrate, cPlayerRelationAny, i);
+    resourceUnitPos = kbUnitGetPosition(resourceUnitID);
+
+    if (kbUnitGetPlayerID(resourceUnitID) != 0 && kbUnitGetPlayerID(resourceUnitID) != cMyID) {
+      continue;
+    }
+    if (kbUnitGetPlayerID(resourceUnitID) == 0 && kbBaseGetOwner(kbUnitGetBaseID(resourceUnitID)) != cMyID) {
+      continue;
+    }
+
+    for(j = 0; < kbUnitCount(cMyID, cUnitTypeAbstractVillager, cUnitStateAlive)) {
+      gathererID = getUnitByPos1(cUnitTypeAbstractVillager, cMyID, resourceUnitPos, 5000.0, j);
+      gathererPos = kbUnitGetPosition(gathererID);
+
+      if (kbUnitIsType(kbUnitGetTargetUnitID(gathererID), cUnitTypeAbstractResourceCrate) == true) {
+        allocatedCrateGatherers--;
+        continue;
+      }
+
+      if (kbUnitGetMovementType(kbUnitGetProtoUnitID(gathererID)) != cMovementTypeLand) {
+        continue;
+      }
+      if (kbUnitIsType(gathererID, cUnitTypeAbstractWagon) == true) {
+        continue;
+      }
+      if (kbUnitIsType(gathererID, cUnitTypeHero) == true) {
+        continue;
+      }
+      if (kbUnitGetPlanID(gathererID) >= 0) {
+        continue;
+      }
+      if (kbCanPath2(gathererPos, resourceUnitPos, kbUnitGetProtoUnitID(gathererID)) == false) {
+        continue;
+      }
+
+      if (allocatedCrateGatherers >= 1) {
+        allocatedCrateGatherers--;
+        aiTaskUnitWork(gathererID, resourceUnitID);
+        break;
+      } else {
+        return;
+      }
+    }
+  }
+}
