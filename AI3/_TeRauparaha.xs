@@ -127,11 +127,13 @@ void handleStartingPaState(int planID = -1) {
     debug("Starting Pa state: " + aiPlanGetState(planID));
     return;
   }
-  vector paPos = kbUnitGetPosition(paID);
-  vector baseFront = xsVectorNormalize(kbGetMapCenter() - paPos);
+
+  int campFireID = getUnit1(cUnitTypeDummyGather);
+  vector campFirePos = kbUnitGetPosition(campFireID);
+  vector baseFront = xsVectorNormalize(kbGetMapCenter() - campFirePos);
 
   // TODO -- Set military gather point & maximum economy distance.
-  int mainBaseID = kbBaseCreate(cMyID, "Main Base", paPos, 80.0);
+  int mainBaseID = kbBaseCreate(cMyID, "Main Base", campFirePos, 80.0);
   kbBaseSetMain(cMyID, mainBaseID, true);
   kbBaseSetEconomy(cMyID, mainBaseID, true);
   kbBaseSetMilitary(cMyID, mainBaseID, true);
