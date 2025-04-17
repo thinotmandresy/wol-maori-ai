@@ -793,6 +793,9 @@ rule ResourceGathering
 active
 minInterval 5
 {
+  // Enable the fallback from here to guarantee a delay + no drift.
+  xsEnableRule("IdleVillagerFallback");
+
   // TODO -- Unhardcode these values
   const float cMaxResourceDistance = 150.0;
   const int cMaxGatherersPerResourceUnit = 8;
@@ -1342,4 +1345,12 @@ minInterval 5
       }
     }
   }
+}
+
+rule IdleVillagerFallback
+inactive
+minInterval 1
+{
+  // Yes, this is intentional. This rule is enabled by the rule ResourceGathering.
+  xsDisableSelf();
 }
