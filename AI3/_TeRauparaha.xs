@@ -215,6 +215,8 @@ minInterval 1
   for(i = 0; < xsArrayGetSize(sHCDeckCardsArray)) {
     aiHCDeckAddCardToDeck(cDefaultHCDeckID, xsQVGet(QV_HCCardIndexOfTechID + xsArrayGetInt(sHCDeckCardsArray, i)));
   }
+
+  aiHCDeckActivate(cDefaultHCDeckID);
 }
 
 rule GenericExploration
