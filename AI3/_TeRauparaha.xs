@@ -1353,4 +1353,96 @@ minInterval 1
 {
   // Yes, this is intentional. This rule is enabled by the rule ResourceGathering.
   xsDisableSelf();
+
+  const int cMaxGatherersPerResourceUnit = 8;
+
+  int gathererID = -1;
+  vector gathererPos = cInvalidVector;
+  int resourceUnitID = -1;
+  vector resourceUnitPos = cInvalidVector;
+  int temp = 0;
+
+  static int sTrackedResourceArray = -1;
+  int trackedResourceCount = 0;
+  if (sTrackedResourceArray == -1) {
+    sTrackedResourceArray = xsArrayCreateInt(1000, -1, "Tracked Resources (Idle Villager Fallback)");
+  }
+
+  static int idleVilagerQueryID = -1;
+  if (idleVilagerQueryID == -1) {
+    idleVilagerQueryID = kbUnitQueryCreate("Idle Villager Query (Idle Villager Fallback)");
+    kbUnitQuerySetUnitType(idleVilagerQueryID, cUnitTypeAbstractVillager);
+    kbUnitQuerySetPlayerRelation(idleVilagerQueryID, -1);
+    kbUnitQuerySetPlayerID(idleVilagerQueryID, cMyID, false);
+    kbUnitQuerySetState(idleVilagerQueryID, cUnitStateAlive);
+    kbUnitQuerySetIgnoreKnockedOutUnits(idleVilagerQueryID, true);
+    kbUnitQuerySetActionType(idleVilagerQueryID, 7);
+  }
+
+  kbUnitQueryResetResults(idleVilagerQueryID);
+  for(i = 0; < kbUnitQueryExecute(idleVilagerQueryID)) {
+    gathererID = kbUnitQueryGetResult(idleVilagerQueryID, i);
+    gathererPos = kbUnitGetPosition(gathererID);
+
+    if (
+      isset(QV_TownBell + gathererID) == true ||
+      kbUnitGetPlanID(gathererID) >= 0 ||
+      kbUnitIsType(gathererID, cUnitTypeAbstractWagon) == true ||
+      kbUnitIsType(gathererID, cUnitTypeHero) == true ||
+      kbUnitGetMovementType(kbUnitGetProtoUnitID(gathererID)) != cMovementTypeLand
+    )
+    {
+      continue;
+    }
+
+    for(j = 0; < 50) {
+      resourceUnitID = getUnitByPos1(cUnitTypeResource, cPlayerRelationAny, gathererPos, 5000.0, j);
+      resourceUnitPos = kbUnitGetPosition(resourceUnitID);
+
+      if (isResourceUnitViable(resourceUnitID) == false) {
+        continue;
+      }
+
+      if (kbCanPath2(gathererPos, resourceUnitPos, kbUnitGetProtoUnitID(gathererID)) == false) {
+        continue;
+      }
+
+      // Don't slaughter animals even if we don't have anything to do.
+      // TODO -- Handle the case where we literally have nothing else to do.
+      if (
+        kbUnitIsType(resourceUnitID, cUnitTypeHuntable) == true ||
+        kbUnitIsType(resourceUnitID, cUnitTypeHerdable) == true
+      )
+      {
+        continue;
+      }
+
+      if (isset(QV_TrackedResource + resourceUnitID) == false) {
+        set(QV_TrackedResource + resourceUnitID);
+        if (kbUnitGetPlayerID(resourceUnitID) != cMyID) {
+          temp = getUnitCountByLocation(cUnitTypeAbstractVillager, cPlayerRelationAny, resourceUnitPos, 6.0);
+        } else {
+          temp = kbUnitGetNumberWorkersIfSeeable(resourceUnitID);
+        }
+        temp = temp + kbUnitGetNumberTargeters(resourceUnitID);
+        xsQVSet(QV_TrackedResourceNumWorkers + resourceUnitID, temp);
+        xsArraySetInt(sTrackedResourceArray, trackedResourceCount, resourceUnitID);
+        trackedResourceCount++;
+      }
+
+      if (xsQVGet(QV_TrackedResourceNumWorkers + resourceUnitID) >= cMaxGatherersPerResourceUnit) {
+        continue;
+      }
+
+      aiTaskUnitWork(gathererID, resourceUnitID);
+      xsQVSet(QV_TrackedResourceNumWorkers + resourceUnitID, xsQVGet(QV_TrackedResourceNumWorkers + resourceUnitID) + 1);
+      break;
+    }
+  }
+
+  for(i = 0; < trackedResourceCount) {
+    resourceUnitID = xsArrayGetInt(sTrackedResourceArray, i);
+    unset(QV_TrackedResource + resourceUnitID);
+    xsQVSet(QV_TrackedResourceNumWorkers + resourceUnitID, 0);
+  }
 }
