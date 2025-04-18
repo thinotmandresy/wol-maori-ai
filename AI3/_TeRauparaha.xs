@@ -162,6 +162,8 @@ void main(void) {
 
   applyDifficultySettings();
 
+  aiSetHandler("handleShipResourceGranted", cXSShipResourceGranted);
+
   // Create a unit picker for dynamic unit training,
   // i.e. without predefined protounits.
   xsQVSet(QV_UnitPickerID, kbUnitPickCreate("Unit Picker"));
@@ -217,6 +219,111 @@ minInterval 1
   }
 
   aiHCDeckActivate(cDefaultHCDeckID);
+}
+
+bool playCardByTechID(int techID = -1) {
+  for(i = 0; < aiHCDeckGetNumberCards(cDefaultHCDeckID)) {
+    if (aiHCDeckGetCardTechID(cDefaultHCDeckID, i) == techID && aiHCDeckCanPlayCard(i)) {
+      aiHCDeckPlayCard(i);
+      return(true);
+    }
+  }
+  return(false);
+}
+
+void handleShipResourceGranted(int param = -1) {
+  const int cMaxMilitaryCards = 6;
+  static int sOrderedMilitaryCardCount = 0;
+  static int sDelayedCard = -1;
+  int cardTechID = -1;
+
+  if (kbResourceGet(cResourceShips) < 0.1) {
+    return;
+  }
+
+  if (
+    kbBaseGetUnderAttack(cMyID, kbBaseGetMainID(cMyID)) == true &&
+    kbGetAge() >= cAge3 &&
+    kbTechGetStatus(cTechHCCard5WhiteGumAnd6Villagers) == cTechStatusActive &&
+    sOrderedMilitaryCardCount <= cMaxMilitaryCards
+  ) {
+    if (playCardByTechID(cTechHCCardNgapuhiForce) == true) { sOrderedMilitaryCardCount++; return; }
+    if (playCardByTechID(cTechHCCard10Marksmen) == true) { sOrderedMilitaryCardCount++; return; }
+    if (playCardByTechID(cTechHCCard10Spearmen) == true) { sOrderedMilitaryCardCount++; return; }
+    if (playCardByTechID(cTechHCCard9Fighters) == true) { sOrderedMilitaryCardCount++; return; }
+    if (playCardByTechID(cTechHCCard6Marksmen) == true) { sOrderedMilitaryCardCount++; return; }
+    if (playCardByTechID(cTechHCCard6Spearmen) == true) { sOrderedMilitaryCardCount++; return; }
+  }
+
+  if (isAgingUp() == true) {
+    sDelayedCard = -1;
+    return;
+  }
+
+  if (kbTechGetStatus(cTechHCCard5WhiteGumAnd6Villagers) == cTechStatusActive) {
+    if (playCardByTechID(cTechHCCardHui) == true) {
+      return;
+    }
+  }
+
+  if (sDelayedCard >= 0) {
+    cardTechID = aiHCDeckGetCardTechID(cDefaultHCDeckID, sDelayedCard);
+    if (kbResourceGet(cResourceShips) < kbTechCostPerResource(cardTechID, cResourceShips)) {
+      return;
+    }
+    if (playCardByTechID(cardTechID) == true) {
+      return;
+    }
+  }
+
+  float currentScore = 0.0;
+  float bestScore = 0.0;
+  int currentCard = -1;
+  int bestCard = -1;
+
+  for (i = 0; < aiHCDeckGetNumberCards(cDefaultHCDeckID)) {
+    if (aiHCDeckCanPlayCard(i) == false) {
+      continue;
+    }
+
+    currentScore = 1.0;
+    if (aiHCDeckGetCardTechID(cDefaultHCDeckID, i) == cTechHCCard3PolyVillagers) {
+      currentScore = 10.0;
+    }
+    if (aiHCDeckGetCardTechID(cDefaultHCDeckID, i) == cTechHCCard10RabbitsAnd9Villagers) {
+      currentScore = 9.0;
+    }
+    if (aiHCDeckGetCardTechID(cDefaultHCDeckID, i) == cTechHCCard5WhiteGumAnd6Villagers) {
+      currentScore = 8.0;
+    }
+    if (aiHCDeckGetCardTechID(cDefaultHCDeckID, i) == cTechHCCard5KiwiAnd4Villagers) {
+      currentScore = 7.0;
+    }
+
+    if (bestScore < currentScore) {
+      bestScore = currentScore;
+      bestCard = i;
+    }
+  }
+
+  if (bestCard <= -1) {
+    return;
+  }
+
+  cardTechID = aiHCDeckGetCardTechID(cDefaultHCDeckID, bestCard);
+  if (kbResourceGet(cResourceShips) < kbTechCostPerResource(cardTechID, cResourceShips)) {
+    sDelayedCard = bestCard;
+    return;
+  }
+  
+  playCardByTechID(cardTechID);
+}
+
+rule SpareShipmentFallback
+active
+minInterval 1
+{
+  handleShipResourceGranted();
 }
 
 rule GenericExploration
