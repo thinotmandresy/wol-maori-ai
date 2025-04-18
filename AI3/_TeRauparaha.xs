@@ -4,7 +4,9 @@ extern const string QV_TownBell = "Town Bell";
 extern const string QV_TownBellBuilding = "Town Bell Building";
 extern const string QV_TrackedResource = "Tracked Resource";
 extern const string QV_TrackedResourceNumWorkers = "Tracked Resource Number Workers";
+extern const string QV_HCCardIndexOfTechID = "Card Index Of Tech ID";
 
+extern const int cDefaultHCDeckID = 0; // This is actually hardcoded in the game.
 extern const float cResourceUnsafeDistance = 40.0;
 
 include "include/query.xs";
@@ -169,6 +171,50 @@ void main(void) {
 
   // Build the Pa and let the game begin!
   buildStartingPa();
+}
+
+rule HomeCityDeckComposition
+active
+minInterval 1
+{
+  static int sHCDeckCardsArray = -1;
+
+  if (sHCDeckCardsArray != -1) {
+    xsDisableSelf();
+    return;
+  }
+
+  sHCDeckCardsArray = xsArrayCreateInt(25, -1, "Deck Cards (Home City Deck Composition)");
+  xsArraySetInt(sHCDeckCardsArray, 0, cTechHCCard5KiwiAnd4Villagers);
+  xsArraySetInt(sHCDeckCardsArray, 1, cTechHCCard5WhiteGumAnd6Villagers);
+  xsArraySetInt(sHCDeckCardsArray, 2, cTechHCCardGeologicalSurvey);
+  xsArraySetInt(sHCDeckCardsArray, 3, cTechHCCard10Spearmen);
+  xsArraySetInt(sHCDeckCardsArray, 4, cTechHCCard10Marksmen);
+  xsArraySetInt(sHCDeckCardsArray, 5, cTechHCCardTEAMPounamu);
+  xsArraySetInt(sHCDeckCardsArray, 6, cTechHCCardFlagstaffWar);
+  xsArraySetInt(sHCDeckCardsArray, 7, cTechHCCardBattlefieldConstructionPOLY);
+  xsArraySetInt(sHCDeckCardsArray, 8, cTechHCCardInvasionOfWaikato);
+  xsArraySetInt(sHCDeckCardsArray, 9, cTechHCCardFirePerformance);
+  xsArraySetInt(sHCDeckCardsArray, 10, cTechHCCardOldWaysMAO);
+  xsArraySetInt(sHCDeckCardsArray, 11, cTechHCCardHui);
+  xsArraySetInt(sHCDeckCardsArray, 12, cTechHCCardRatanaPa);
+  xsArraySetInt(sHCDeckCardsArray, 13, cTechHCCard6Marksmen);
+  xsArraySetInt(sHCDeckCardsArray, 14, cTechHCCard6Spearmen);
+  xsArraySetInt(sHCDeckCardsArray, 15, cTechHCCardMauRakau);
+  xsArraySetInt(sHCDeckCardsArray, 16, cTechHCCard9Fighters);
+  xsArraySetInt(sHCDeckCardsArray, 17, cTechHCCard3PolyVillagers);
+  xsArraySetInt(sHCDeckCardsArray, 18, cTechHCCardMonoiOil);
+  xsArraySetInt(sHCDeckCardsArray, 19, cTechHCCard10RabbitsAnd9Villagers);
+  xsArraySetInt(sHCDeckCardsArray, 20, cTechHCCardLandWars);
+  xsArraySetInt(sHCDeckCardsArray, 21, cTechHCCardNgapuhiForce);
+
+  for(i = 0; < aiHCCardsGetTotal()) {
+    xsQVSet(QV_HCCardIndexOfTechID + aiHCCardsGetCardTechID(i), i);
+  }
+
+  for(i = 0; < xsArrayGetSize(sHCDeckCardsArray)) {
+    aiHCDeckAddCardToDeck(cDefaultHCDeckID, xsQVGet(QV_HCCardIndexOfTechID + xsArrayGetInt(sHCDeckCardsArray, i)));
+  }
 }
 
 rule GenericExploration
