@@ -5,6 +5,7 @@ extern const string QV_TownBellBuilding = "Town Bell Building";
 extern const string QV_TrackedResource = "Tracked Resource";
 extern const string QV_TrackedResourceNumWorkers = "Tracked Resource Number Workers";
 extern const string QV_HCCardIndexOfTechID = "Card Index Of Tech ID";
+extern const string QV_VoyageTechUnitMap = "Voyage Tech Unit Map";
 
 extern const int cDefaultHCDeckID = 0; // This is actually hardcoded in the game.
 extern const float cResourceUnsafeDistance = 40.0;
@@ -797,6 +798,14 @@ runImmediately
         break;
       }
     }
+  }
+
+  // Manually add voyage costs as we don't let voyage plans to sit in the background
+  if (kbGetAge() <= cAge4) {
+    int voyageDestinationID = xsQVGet(QV_VoyageTechUnitMap + aiGetPoliticianChoice(kbGetAge() + 1));
+    needFood = needFood + kbUnitCostPerResource(voyageDestinationID, cResourceFood);
+    needWood = needWood + kbUnitCostPerResource(voyageDestinationID, cResourceWood);
+    needGold = needGold + kbUnitCostPerResource(voyageDestinationID, cResourceGold);
   }
 
   needTotal = needFood + needWood + needGold;
@@ -1608,37 +1617,33 @@ inactive
 minInterval 1
 {
   static int voyagePlanID = -1;
-  static int voyageDestinationID = -1;
+  int voyageDestinationID = -1;
   int rangatiraID = -1;
   vector rangatiraPos = cInvalidVector;
 
-  // If nextAge is equal to the current age, it means we recently aged up.
-  static int nextAge = -1;
-  if (nextAge == -1) {
-    // First rule call. Pretend we just aged up.
-    nextAge = kbGetAge();
+  static bool init = true;
+  if (init) {
+    init = false;
+
+    xsQVSet(QV_VoyageTechUnitMap + cTechPOLYVoyageMaoriFiji2, cUnitTypePOLYVMFiji2);
+    xsQVSet(QV_VoyageTechUnitMap + cTechPOLYVoyageMaoriVanDiemensLand3, cUnitTypePOLYVMVanDiemensLand3);
+    xsQVSet(QV_VoyageTechUnitMap + cTechPOLYVoyageMaoriChathamIslands4, cUnitTypePOLYVMChathamIslands4);
+    xsQVSet(QV_VoyageTechUnitMap + cTechPOLYVoyageMaoriSouthAfrica5, cUnitTypePOLYVMSouthAfrica5);
+
+    aiPopulatePoliticianList();
+    aiSetPoliticianChoice(cAge2, cTechPOLYVoyageMaoriFiji2);
+    aiSetPoliticianChoice(cAge3, cTechPOLYVoyageMaoriVanDiemensLand3);
+    aiSetPoliticianChoice(cAge4, cTechPOLYVoyageMaoriChathamIslands4);
+    aiSetPoliticianChoice(cAge5, cTechPOLYVoyageMaoriSouthAfrica5);
   }
 
-  if (nextAge >= cAge5) {
+  if (kbGetAge() >= cAge5) {
     // TODO -- Great War support
     xsDisableSelf();
     return;
   }
 
-  if (kbGetAge() == nextAge) {
-    if (nextAge == cAge1) { voyageDestinationID = cUnitTypePOLYVMFiji2; }
-    if (nextAge == cAge2) { voyageDestinationID = cUnitTypePOLYVMVanDiemensLand3; }
-    if (nextAge == cAge3) { voyageDestinationID = cUnitTypePOLYVMChathamIslands4; }
-    if (nextAge == cAge4) {
-      if (kbProtoUnitAvailable(cUnitTypePOLYVMSouthAfrica5) == true) {
-        voyageDestinationID = cUnitTypePOLYVMSouthAfrica5;
-      } else {
-        voyageDestinationID = cUnitTypePOLYVMNewSouthWales5;
-      }
-    }
-    nextAge++;
-  }
-
+  voyageDestinationID = xsQVGet(QV_VoyageTechUnitMap + aiGetPoliticianChoice(kbGetAge() + 1));
   if (kbCanAffordUnit(voyageDestinationID, cRootEscrowID) == false) {
     return;
   }
