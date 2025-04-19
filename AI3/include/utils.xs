@@ -7,10 +7,6 @@ void debug(string message = "") {
 
   xsSetContextPlayer(0);
   for (playerID = 1; < cNumberPlayers) {
-    if (playerID == cMyID) {
-      continue;
-    }
-
     if (kbHasPlayerLost(playerID) == true) {
       continue;
     }
