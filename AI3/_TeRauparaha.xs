@@ -596,7 +596,7 @@ runImmediately
 
   for(i = 0; < aiPlanGetNumber(cPlanTrain)) {
     planID = aiPlanGetIDByIndex(cPlanTrain, -1, true, i);
-    paID = aiPlanGetVariableInt(cPlanTrain, cTrainPlanBuildingID, 0);
+    paID = aiPlanGetVariableInt(planID, cTrainPlanBuildingID, 0);
     if (kbUnitIsDead(paID) == true) {
       aiPlanDestroy(planID);
       continue;
