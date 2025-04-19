@@ -421,8 +421,23 @@ minInterval 1
     return;
   }
 
-  for(i = 0 ; < kbUnitCount(0, cUnitTypeAbstractNuggetLand, cUnitStateAlive)) {
-    int nuggetID = getUnitByPos1(cUnitTypeAbstractNuggetLand, 0, rangatiraPos, 2000.0, i);
+  static int nuggetQueryID = -1;
+  if (nuggetQueryID == -1) {
+    nuggetQueryID = kbUnitQueryCreate("Nugget Query (Rangatira Exploration)");
+    kbUnitQuerySetUnitType(nuggetQueryID, cUnitTypeAbstractNuggetLand);
+    kbUnitQuerySetState(nuggetQueryID, cUnitStateAlive);
+    kbUnitQuerySetIgnoreKnockedOutUnits(nuggetQueryID, true);
+    kbUnitQuerySetPlayerRelation(nuggetQueryID, -1);
+    kbUnitQuerySetPlayerID(nuggetQueryID, 0, false);
+    kbUnitQuerySetPosition(nuggetQueryID, rangatiraPos);
+    kbUnitQuerySetMaximumDistance(nuggetQueryID, 2000.0);
+    kbUnitQuerySetAscendingSort(nuggetQueryID, true);
+    kbUnitQuerySetSeeableOnly(nuggetQueryID, true);
+  }
+
+  kbUnitQueryResetResults(nuggetQueryID);
+  for(i = 0 ; < kbUnitQueryExecute(nuggetQueryID)) {
+    int nuggetID = kbUnitQueryGetResult(nuggetQueryID, i);
     vector nuggetPos = kbUnitGetPosition(nuggetID);
     if (kbCanPath2(rangatiraPos, nuggetPos, cUnitTypeRangatira) == false) {
       continue;
