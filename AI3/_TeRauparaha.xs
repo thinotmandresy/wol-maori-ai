@@ -681,7 +681,7 @@ minInterval 1
       continue;
     }
 
-    bool wasVillagerAffected = true;
+    bool wasVillagerAffected = false;
     for (j = 0; < kbUnitCount(cMyID, cUnitTypeMaoriPa, cUnitStateAlive)) {
       paID = getUnitByPos1(cUnitTypeMaoriPa, cMyID, villagerPos, 2000.0, j);
       paPos = kbUnitGetPosition(paID);
@@ -693,7 +693,7 @@ minInterval 1
       }
       aiTaskUnitWork(villagerID, paID);
       xsQVSet(QV_TownBellBuilding + villagerID, paID);
-      wasVillagerAffected = false;
+      wasVillagerAffected = true;
       break;
     }
     if (wasVillagerAffected == false) {
