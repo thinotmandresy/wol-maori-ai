@@ -1639,6 +1639,10 @@ minInterval 1
     nextAge++;
   }
 
+  if (kbCanAffordUnit(voyageDestinationID, cRootEscrowID) == false) {
+    return;
+  }
+
   if (aiPlanGetState(voyagePlanID) == -1) {
     aiPlanDestroy(voyagePlanID);
 
