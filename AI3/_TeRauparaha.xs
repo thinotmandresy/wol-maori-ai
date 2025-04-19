@@ -146,6 +146,7 @@ void handleStartingPaState(int planID = -1) {
   xsEnableRule("VillagerProduction");
   xsEnableRule("TownBellCall");
   xsEnableRule("TownBellReturnToWork");
+  xsEnableRule("Voyaging");
 }
 
 void main(void) {
@@ -1599,5 +1600,125 @@ minInterval 1
     resourceUnitID = xsArrayGetInt(sTrackedResourceArray, i);
     unset(QV_TrackedResource + resourceUnitID);
     xsQVSet(QV_TrackedResourceNumWorkers + resourceUnitID, 0);
+  }
+}
+
+rule Voyaging
+inactive
+minInterval 1
+{
+  static int voyagePlanID = -1;
+  static int voyageDestinationID = -1;
+  int rangatiraID = -1;
+  vector rangatiraPos = cInvalidVector;
+
+  // If nextAge is equal to the current age, it means we recently aged up.
+  static int nextAge = -1;
+  if (nextAge == -1) {
+    // First rule call. Pretend we just aged up.
+    nextAge = kbGetAge();
+  }
+
+  if (nextAge >= cAge5) {
+    // TODO -- Great War support
+    xsDisableSelf();
+    return;
+  }
+
+  if (kbGetAge() == nextAge) {
+    if (nextAge == cAge1) { voyageDestinationID = cUnitTypePOLYVMFiji2; }
+    if (nextAge == cAge2) { voyageDestinationID = cUnitTypePOLYVMVanDiemensLand3; }
+    if (nextAge == cAge3) { voyageDestinationID = cUnitTypePOLYVMChathamIslands4; }
+    if (nextAge == cAge4) {
+      if (kbProtoUnitAvailable(cUnitTypePOLYVMSouthAfrica5) == true) {
+        voyageDestinationID = cUnitTypePOLYVMSouthAfrica5;
+      } else {
+        voyageDestinationID = cUnitTypePOLYVMNewSouthWales5;
+      }
+    }
+    nextAge++;
+  }
+
+  if (aiPlanGetState(voyagePlanID) == -1) {
+    aiPlanDestroy(voyagePlanID);
+
+    rangatiraID = getUnit1(cUnitTypeRangatira);
+    rangatiraPos = kbUnitGetPosition(rangatiraID);
+
+    voyagePlanID = aiPlanCreate("Voyage to " + kbGetProtoUnitName(voyageDestinationID), cPlanBuild);
+
+    aiPlanSetDesiredPriority(voyagePlanID, 100);
+    aiPlanSetEscrowID(voyagePlanID, cRootEscrowID);
+    aiPlanSetAllowUnderAttackResponse(voyagePlanID, false);
+
+    aiPlanSetVariableInt(voyagePlanID, cBuildPlanBuildingTypeID, 0, voyageDestinationID);
+
+    aiPlanSetInitialPosition(voyagePlanID, rangatiraPos);
+
+    aiPlanSetVariableVector(voyagePlanID, cBuildPlanCenterPosition, 0, rangatiraPos);
+    aiPlanSetVariableFloat(voyagePlanID, cBuildPlanCenterPositionDistance, 0, 80.0);
+
+    aiPlanSetVariableBool(voyagePlanID, cBuildPlanInfluenceAtBuilderPosition, 0, false);
+    aiPlanSetVariableFloat(voyagePlanID, cBuildPlanInfluenceBuilderPositionValue, 0, 0.0);
+    aiPlanSetVariableFloat(voyagePlanID, cBuildPlanRandomBPValue, 0, 0.0);
+    aiPlanSetVariableFloat(voyagePlanID, cBuildPlanBuildingBufferSpace, 0, 5.0);
+
+    aiPlanSetVariableVector(voyagePlanID, cBuildPlanInfluencePosition, 0, rangatiraPos);
+    aiPlanSetVariableFloat(voyagePlanID, cBuildPlanInfluencePositionDistance, 0, 80.0);
+    aiPlanSetVariableFloat(voyagePlanID, cBuildPlanInfluencePositionValue, 0, 500.0);
+    aiPlanSetVariableInt(voyagePlanID, cBuildPlanInfluencePositionFalloff, 0, cBPIFalloffLinear);
+
+    aiPlanSetNumberVariableValues(voyagePlanID, cBuildPlanInfluenceUnitTypeID, 4, true);
+    aiPlanSetNumberVariableValues(voyagePlanID, cBuildPlanInfluenceUnitDistance, 4, true);
+    aiPlanSetNumberVariableValues(voyagePlanID, cBuildPlanInfluenceUnitValue, 4, true);
+    aiPlanSetNumberVariableValues(voyagePlanID, cBuildPlanInfluenceUnitFalloff, 4, true);
+
+    // Avoid trees
+    aiPlanSetVariableInt(voyagePlanID, cBuildPlanInfluenceUnitTypeID, 1, cUnitTypeTree);
+    aiPlanSetVariableFloat(voyagePlanID, cBuildPlanInfluenceUnitDistance, 1, 10.0);
+    aiPlanSetVariableFloat(voyagePlanID, cBuildPlanInfluenceUnitValue, 1, -100.0);
+    aiPlanSetVariableInt(voyagePlanID, cBuildPlanInfluenceUnitFalloff, 1, cBPIFalloffLinear);
+
+    // Avoid berry bushes
+    aiPlanSetVariableInt(voyagePlanID, cBuildPlanInfluenceUnitTypeID, 2, cUnitTypeAbstractFruit);
+    aiPlanSetVariableFloat(voyagePlanID, cBuildPlanInfluenceUnitDistance, 2, 10.0);
+    aiPlanSetVariableFloat(voyagePlanID, cBuildPlanInfluenceUnitValue, 2, -100.0);
+    aiPlanSetVariableInt(voyagePlanID, cBuildPlanInfluenceUnitFalloff, 2, cBPIFalloffLinear);
+
+	  // Avoid mines
+    aiPlanSetVariableInt(voyagePlanID, cBuildPlanInfluenceUnitTypeID, 3, cUnitTypeMinedResource);
+    aiPlanSetVariableFloat(voyagePlanID, cBuildPlanInfluenceUnitDistance, 3, 10.0);
+    aiPlanSetVariableFloat(voyagePlanID, cBuildPlanInfluenceUnitValue, 3, -100.0);
+    aiPlanSetVariableInt(voyagePlanID, cBuildPlanInfluenceUnitFalloff, 3, cBPIFalloffLinear);
+
+    aiPlanSetVariableInt(voyagePlanID, cBuildPlanBuildUnitID, 0, rangatiraID);
+    aiPlanAddUnitType(voyagePlanID, cUnitTypeRangatira, 0, 0, 1);
+    aiPlanAddUnit(voyagePlanID, rangatiraID);
+    aiPlanSetEventHandler(voyagePlanID, cPlanEventStateChange, "handleVoyagePlanState");
+    aiPlanSetActive(voyagePlanID, true);
+  }
+}
+
+void handleVoyagePlanState(int planID = -1)
+{
+  if (aiPlanGetState(planID) != cPlanStateBuild) {
+    return;
+  }
+
+  // Immediately retask gatherers
+  ResourceGathering();
+
+  int placementID = aiPlanGetVariableInt(planID, cBuildPlanBuildingPlacementID, 0);
+  vector position = kbBuildingPlacementGetResultPosition(placementID);
+
+  for(playerID = 1 ; < cNumberPlayers) {
+    if (playerID == cMyID) {
+      continue;
+    }
+    if (kbIsPlayerEnemy(playerID)) {
+      continue;
+    }
+
+    aiCommsSendStatementWithVector(playerID, cAICommPromptToAllyIWillDefendLocation, position);
   }
 }
