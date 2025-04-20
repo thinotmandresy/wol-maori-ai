@@ -20,6 +20,74 @@ float getMaxResourceDistance(int baseID = -1) {
   return(cMaxResourceDistance);
 }
 
+bool isHuntableSupplySufficient(int baseID = -1) {
+  const float cMinFoodPerGatherer = 50.0;
+  float maxResourceDistance = getMaxResourceDistance(baseID);
+  int gathererCount = kbUnitCount(cMyID, cUnitTypeAbstractVillager, cUnitStateAlive);
+  int allocatedFoodGatherers = gathererCount * aiGetResourceGathererPercentage(cResourceFood, cRGPActual);
+  return(kbGetAmountValidResources(baseID, cResourceFood, cAIResourceSubTypeHunt, maxResourceDistance) >= allocatedFoodGatherers * cMinFoodPerGatherer);
+}
+
+bool isFruitSupplySufficient(int baseID = -1) {
+  const int cMaxGatherersPerFruit = 8;
+  int baseOwner = kbBaseGetOwner(baseID);
+  vector basePos = kbBaseGetLocation(baseOwner, baseID);
+  float maxResourceDistance = getMaxResourceDistance(baseID);
+  int gathererCount = kbUnitCount(cMyID, cUnitTypeAbstractVillager, cUnitStateAlive);
+  int allocatedFoodGatherers = gathererCount * aiGetResourceGathererPercentage(cResourceFood, cRGPActual);
+  int fruitCount = 0;
+  for(i = 0 ; < getUnitCountByLocation(cUnitTypeAbstractFruit, cPlayerRelationAny, basePos, maxResourceDistance)) {
+    int fruitUnitID = getUnitByPos1(cUnitTypeAbstractFruit, cPlayerRelationAny, basePos, maxResourceDistance, i);
+    if ((kbUnitGetPlayerID(fruitUnitID) != cMyID) && (kbUnitGetPlayerID(fruitUnitID) != 0)) {
+      continue;
+    }
+    if (kbUnitGetCurrentInventory(fruitUnitID, cResourceFood) <= 0.0) {
+      continue;
+    }
+    fruitCount++;
+  }
+  return(fruitCount >= floor(allocatedFoodGatherers / cMaxGatherersPerFruit));
+}
+
+bool isMineSupplySufficient(int baseID = -1) {
+  const int cMaxGatherersPerMine = 20;
+  const float cMinGoldPerGatherer = 50.0;
+  int baseOwner = kbBaseGetOwner(baseID);
+  vector basePos = kbBaseGetLocation(baseOwner, baseID);
+  float maxResourceDistance = getMaxResourceDistance(baseID);
+  int gathererCount = kbUnitCount(cMyID, cUnitTypeAbstractVillager, cUnitStateAlive);
+  int allocatedGoldGatherers = gathererCount * aiGetResourceGathererPercentage(cResourceGold, cRGPActual);
+  int mineUnitID = -1;
+  int mineCount = 0;
+  bool isSufficient = true;
+
+  for(i = 0 ; < getUnitCountByLocation(cUnitTypeMinedResource, cPlayerRelationAny, basePos, maxResourceDistance)) {
+    mineUnitID = getUnitByPos1(cUnitTypeMinedResource, cPlayerRelationAny, basePos, maxResourceDistance, i);
+    if ((kbUnitGetPlayerID(mineUnitID) != cMyID) && (kbUnitGetPlayerID(mineUnitID) != 0)) {
+      continue;
+    }
+    if (kbUnitGetCurrentInventory(mineUnitID, cResourceGold) <= 0.0) {
+      continue;
+    }
+    mineCount++;
+  }
+  isSufficient = mineCount >= floor(allocatedGoldGatherers / cMaxGatherersPerMine);
+
+  if (isSufficient == false) {
+    isSufficient = kbGetAmountValidResources(baseID, cResourceGold, cAIResourceSubTypeHunt, maxResourceDistance) >= allocatedGoldGatherers * cMinGoldPerGatherer;
+  }
+
+  return(isSufficient);
+}
+
+bool isTreeSupplySufficient(int baseID = -1) {
+  const float cMinWoodPerGatherer = 50.0;
+  float maxResourceDistance = getMaxResourceDistance(baseID);
+  int gathererCount = kbUnitCount(cMyID, cUnitTypeAbstractVillager, cUnitStateAlive);
+  int allocatedWoodGatherers = gathererCount * aiGetResourceGathererPercentage(cResourceWood, cRGPActual);
+  return(kbGetAmountValidResources(baseID, cResourceWood, cAIResourceSubTypeEasy, maxResourceDistance) >= allocatedWoodGatherers * cMinWoodPerGatherer);
+}
+
 void sendStartupWarnings(void) {
   if (aiGetGameType() != cGameTypeRandom) {
     if (aiGetGameType() == cGameTypeSaved) {
@@ -748,8 +816,6 @@ runImmediately
   aiSetResourceGathererPercentageWeight(cRGPCost, 0.0);
   aiNormalizeResourceGathererPercentageWeights();
 
-  const float cMinWoodPerGatherer = 100.0;
-
   float currentFood = kbResourceGet(cResourceFood);
   float currentWood = kbResourceGet(cResourceWood);
   float currentGold = kbResourceGet(cResourceGold);
@@ -855,11 +921,7 @@ runImmediately
     rgpGold = shortfallGold / shortfallTotal;
   }
 
-  int mainBaseID = kbBaseGetMainID(cMyID);
-  int woodGathererCount = rgpWood * kbUnitCount(cMyID, cUnitTypeAbstractVillager, cUnitStateAlive);
-  float validWoodAmount = kbGetAmountValidResources(mainBaseID, cResourceWood, cAIResourceSubTypeEasy, getMaxResourceDistance(mainBaseID));
-  float validWoodPerGatherer = validWoodAmount / woodGathererCount;
-  if (validWoodPerGatherer < cMinWoodPerGatherer) {
+  if (isTreeSupplySufficient(kbBaseGetMainID(cMyID)) == false) {
     rgpWood = 0.0;
   }
 
