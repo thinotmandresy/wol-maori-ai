@@ -706,30 +706,30 @@ rule TownBellReturnToWork
 inactive
 minInterval 1
 {
-  int villagerCount = kbUnitCount(cMyID, cUnitTypeLogicalTypeAffectedByTownBell, cUnitStateAlive);
   int villagerID = -1;
   vector villagerPos = cInvalidVector;
-  int paID = -1;
-  vector paPos = cInvalidVector;
+  int buildingID = -1;
+  vector buildingPos = cInvalidVector;
 
-  for (i = 0; < villagerCount) {
-    villagerID = getUnit1(cUnitTypeLogicalTypeAffectedByTownBell, cMyID, i);
-    villagerPos = kbUnitGetPosition(villagerID);
-    if (kbUnitIsContainedInType(villagerID, "MaoriPa") == false) {
-      if (isset(QV_TownBell + villagerID) == false) {
-        continue;
-      }
-      if (kbUnitIsDead(xsQVGet(QV_TownBellBuilding + villagerID)) == true) {
-        unset(QV_TownBell + villagerID);
-        xsQVSet(QV_TownBellBuilding + villagerID, 0);
-        aiTaskUnitMove(villagerID, villagerPos);
-      }
+  for (i = 0; < kbUnitCount(cMyID, cUnitTypeBuilding, cUnitStateAlive)) {
+    buildingID = getUnit1(cUnitTypeBuilding, cMyID, i);
+    buildingPos = kbUnitGetPosition(buildingID);
+
+    if (kbUnitGetNumberContained(buildingID) == 0) {
       continue;
     }
-    if (getUnitCountByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, villagerPos, 30.0) <= 2) {
+    if (getUnitCountByLocation(cUnitTypeLogicalTypeLandMilitary, cPlayerRelationEnemyNotGaia, buildingPos, 50.0) >= 3) {
+      continue;
+    }
+
+    aiTaskUnitEjectContained(buildingID);
+
+    for (j = 0; < getUnitCountByLocation(cUnitTypeLogicalTypeAffectedByTownBell, cMyID, buildingPos, 8.0)) {
+      villagerID = getUnitByPos1(cUnitTypeLogicalTypeAffectedByTownBell, cMyID, buildingPos, 8.0, j);
+      villagerPos = kbUnitGetPosition(villagerID);
       unset(QV_TownBell + villagerID);
-      paID = getUnitByPos1(cUnitTypeMaoriPa, cMyID, villagerPos, 10.0, i);
-      aiTaskUnitEjectContained(paID);
+      xsQVSet(QV_TownBellBuilding + villagerID, 0);
+      aiTaskUnitMove(villagerID, villagerPos);
     }
   }
 }
