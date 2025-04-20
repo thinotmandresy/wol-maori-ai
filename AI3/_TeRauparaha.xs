@@ -6,6 +6,7 @@ extern const string QV_TrackedResource = "Tracked Resource";
 extern const string QV_TrackedResourceNumWorkers = "Tracked Resource Number Workers";
 extern const string QV_HCCardIndexOfTechID = "Card Index Of Tech ID";
 extern const string QV_VoyageTechUnitMap = "Voyage Tech Unit Map";
+extern const string QV_HerderID = "Herder ID";
 
 extern const int cDefaultHCDeckID = 0; // This is actually hardcoded in the game.
 extern const float cResourceUnsafeDistance = 40.0;
@@ -239,6 +240,9 @@ void main(void) {
   // Create a unit picker for dynamic unit training,
   // i.e. without predefined protounits.
   xsQVSet(QV_UnitPickerID, kbUnitPickCreate("Unit Picker"));
+
+  // Make the default -1 instead of 0
+  xsQVSet(QV_HerderID, -1);
 
   // Store all resources in the same inventory (Root)
   resetEscrows();
@@ -672,6 +676,156 @@ minInterval 1
       break;
     }
   }
+}
+
+rule HuntableHerding
+active
+minInterval 1
+{
+  if (kbGetAge() >= cAge3) {
+    xsQVSet(QV_HerderID, -1);
+    xsDisableSelf();
+    return;
+  }
+
+  const float cHuntHerdingMaxDistance = 120.0;
+  const float cHuntHerdingMinDistance = 30.0;
+  const int   cFleeingHuntableTimeout = 15000;
+
+  static int mainPaID = -1;
+  vector mainPaPos = kbUnitGetPosition(mainPaID);
+  int herderID = xsQVGet(QV_HerderID);
+  vector herderPos = kbUnitGetPosition(herderID);
+  static int sLastShot = 0;
+  static int sHuntableToHerd = -1;
+  vector huntableToHerdPos = kbUnitGetPosition(sHuntableToHerd);
+  vector shootingSpot = huntableToHerdPos + xsVectorNormalize(huntableToHerdPos - mainPaPos) * 8.0;
+  float distanceToShootingSpot = xsVectorLength(herderPos - shootingSpot);
+
+  // TODO -- Read the actual value via UHC.
+  const float cVillagerVelocity = 4.0;
+
+  int villagerID = -1;
+  vector villagerPos = cInvalidVector;
+  int huntableID = -1;
+  vector huntablePos = cInvalidVector;
+  int huntableHitpoints = 0;
+  int strongestHuntable = -1;
+  int highestHitpoints = 0.0;
+
+  if (kbUnitGetCurrentHitpoints(mainPaID) < 0.1) {
+    mainPaID = getUnit1(cUnitTypeMaoriPa, cMyID, 0);
+    return;
+  }
+
+  if (
+    kbUnitGetCurrentHitpoints(herderID) < 0.1 ||
+    kbUnitGetPlanID(herderID) >= 0
+  )
+  {
+    herderID = -1;
+    xsQVSet(QV_HerderID, herderID);
+
+    for(i = 0; < kbUnitCount(cMyID, cUnitTypeAbstractVillager, cUnitStateAlive)) {
+      villagerID = getUnitByPos1(cUnitTypeAbstractVillager, cMyID, mainPaPos, 5000.0, i);
+      villagerPos = kbUnitGetPosition(villagerID);
+
+      if (
+        kbUnitGetMovementType(kbUnitGetProtoUnitID(villagerID)) != cMovementTypeLand ||
+        kbUnitIsType(villagerID, cUnitTypeAbstractWagon) == true ||
+        kbUnitGetProtoUnitID(villagerID) == cUnitTypeSettlerWagon ||
+        kbUnitGetPlanID(villagerID) >= 0 ||
+        kbUnitGetActionType(villagerID) == 0 ||
+        isset(QV_TownBell + villagerID) ||
+        kbCanPath2(villagerPos, mainPaPos, kbUnitGetProtoUnitID(villagerID)) == false
+      )
+      {
+        continue;
+      }
+
+      herderID = villagerID;
+      xsQVSet(QV_HerderID, herderID);
+      return;
+    }
+  }
+
+  xsSetContextPlayer(0);
+  float huntableToHerdHealth = kbUnitGetHealth(sHuntableToHerd);
+  xsSetContextPlayer(cMyID);
+
+  if (huntableToHerdHealth < 1.0) {
+    int temp = getUnitByPos1(cUnitTypeTree, 0, herderPos, 5000.0, 0);
+    if (temp == -1) {
+      temp = getUnitByPos1(cUnitTypeMinedResource, 0, herderPos, 5000.0, 0);
+    }
+    aiTaskUnitWork(herderID, temp);
+
+    // Reset the query by using index 0 (we're gonna iterate from the last index)
+    getUnitByPos1(cUnitTypeHuntable, 0, herderPos, 5000.0, 0);
+
+    for(i = getUnitCountByLocation(cUnitTypeHuntable, 0, herderPos, 5000.0) - 1; >= 0) {
+      huntableID = getUnitByPos1(cUnitTypeHuntable, 0, herderPos, 5000.0, i);
+      huntablePos = kbUnitGetPosition(huntableID);
+
+      // Do not steal ally huntables.
+      int closestAllyTownCenterID = getUnitByPos2(cUnitTypeAbstractTownCenter, cPlayerRelationAlly, huntablePos, 60.0, 0);
+      if (closestAllyTownCenterID >= 0 && kbUnitGetPlayerID(closestAllyTownCenterID) != cMyID) {
+        continue;
+      }
+
+      if (kbCanPath2(huntablePos, mainPaPos, kbUnitGetProtoUnitID(huntableID)) == false) {
+        continue;
+      }
+
+      if (kbCanPath2(herderPos, huntablePos, kbUnitGetProtoUnitID(herderID)) == false) {
+        continue;
+      }
+
+      if (xsVectorLength(mainPaPos - huntablePos) < cHuntHerdingMinDistance) {
+        continue;
+      }
+
+      if (xsVectorLength(mainPaPos - huntablePos) > cHuntHerdingMaxDistance) {
+        continue;
+      }
+
+      xsSetContextPlayer(0);
+      float huntableHealth = kbUnitGetHealth(huntableID);
+      xsSetContextPlayer(cMyID);
+
+      if (huntableHealth < 1.0) {
+        continue;
+      }
+
+      huntableHitpoints = kbUnitGetCurrentHitpoints(huntableID);
+
+      if (huntableHitpoints >= highestHitpoints) {
+        highestHitpoints = huntableHitpoints;
+        strongestHuntable = huntableID;
+      }
+    }
+
+    sHuntableToHerd = strongestHuntable;
+    return;
+  }
+
+  if (xsGetTime() < sLastShot + cFleeingHuntableTimeout - (1000 * distanceToShootingSpot) / cVillagerVelocity) {
+    return;
+  }
+
+  if (
+    xsVectorLength(herderPos - mainPaPos) > xsVectorLength(huntableToHerdPos - mainPaPos) && 
+    xsVectorLength(herderPos - shootingSpot) < xsVectorLength(huntableToHerdPos - shootingSpot) && 
+    xsVectorLength(herderPos - huntableToHerdPos) < 12.0 && xsVectorLength(herderPos - huntableToHerdPos) > 6.0
+  )
+  {
+    aiTaskUnitWork(herderID, sHuntableToHerd);
+    sHuntableToHerd = -1;
+    sLastShot = xsGetTime();
+    return;
+  }
+
+  aiTaskUnitMove(herderID, shootingSpot);
 }
 
 rule VillagerProduction
@@ -1218,7 +1372,8 @@ minInterval 5
       kbUnitIsType(gathererID, cUnitTypeAbstractWagon) == true ||
       kbUnitIsType(gathererID, cUnitTypeHero) == true ||
       kbUnitGetActionType(gathererID) == 9 ||
-      kbUnitGetActionType(gathererID) == 0
+      kbUnitGetActionType(gathererID) == 0 ||
+      gathererID == xsQVGet(QV_HerderID)
     )
     {
       continue;
@@ -1577,6 +1732,9 @@ minInterval 5
         continue;
       }
       if (kbUnitGetPlanID(gathererID) >= 0) {
+        continue;
+      }
+      if (gathererID == xsQVGet(QV_HerderID)) {
         continue;
       }
       if (kbCanPath2(gathererPos, resourceUnitPos, kbUnitGetProtoUnitID(gathererID)) == false) {
