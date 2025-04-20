@@ -14,6 +14,12 @@ include "include/query.xs";
 include "include/comm.xs";
 include "include/utils.xs";
 
+// TODO -- Evaluate based on different criteria (safety, allies, etc.)
+float getMaxResourceDistance(int baseID = -1) {
+  const float cMaxResourceDistance = 150.0;
+  return(cMaxResourceDistance);
+}
+
 void sendStartupWarnings(void) {
   if (aiGetGameType() != cGameTypeRandom) {
     if (aiGetGameType() == cGameTypeSaved) {
@@ -742,7 +748,6 @@ runImmediately
   aiSetResourceGathererPercentageWeight(cRGPCost, 0.0);
   aiNormalizeResourceGathererPercentageWeights();
 
-  const float cMaxResourceDistance = 100.0;
   const float cMinWoodPerGatherer = 100.0;
 
   float currentFood = kbResourceGet(cResourceFood);
@@ -852,7 +857,7 @@ runImmediately
 
   int mainBaseID = kbBaseGetMainID(cMyID);
   int woodGathererCount = rgpWood * kbUnitCount(cMyID, cUnitTypeAbstractVillager, cUnitStateAlive);
-  float validWoodAmount = kbGetAmountValidResources(mainBaseID, cResourceWood, cAIResourceSubTypeEasy, cMaxResourceDistance);
+  float validWoodAmount = kbGetAmountValidResources(mainBaseID, cResourceWood, cAIResourceSubTypeEasy, getMaxResourceDistance(mainBaseID));
   float validWoodPerGatherer = validWoodAmount / woodGathererCount;
   if (validWoodPerGatherer < cMinWoodPerGatherer) {
     rgpWood = 0.0;
@@ -976,7 +981,6 @@ minInterval 5
   xsEnableRule("IdleVillagerFallback");
 
   // TODO -- Unhardcode these values
-  const float cMaxResourceDistance = 150.0;
   const int cMaxGatherersPerResourceUnit = 8;
   const int cMaxGatherersPerKumaraField = 15;
   const int cMaxGatherersPerMine = 20;
@@ -999,6 +1003,8 @@ minInterval 5
   int mainBaseID = kbBaseGetMainID(cMyID);
   vector mainBasePos = kbBaseGetLocation(cMyID, mainBaseID);
 
+  float maxResourceDistance = getMaxResourceDistance(mainBaseID);
+
   static int sTrackedResourceArray = -1;
   int trackedResourceCount = 0;
   if (sTrackedResourceArray == -1) {
@@ -1020,7 +1026,7 @@ minInterval 5
     kbGaiaUnitQuerySetPlayerID(deadAnimalQueryID, 0, false);
     kbGaiaUnitQuerySetActionType(deadAnimalQueryID, 1);
     kbGaiaUnitQuerySetAscendingSort(deadAnimalQueryID, true);
-    kbGaiaUnitQuerySetMaximumDistance(deadAnimalQueryID, cMaxResourceDistance);
+    kbGaiaUnitQuerySetMaximumDistance(deadAnimalQueryID, maxResourceDistance);
 
     aliveAnimalQueryID = kbUnitQueryCreate("Alive Animal Query (Resource Gathering)");
     kbUnitQuerySetUnitType(aliveAnimalQueryID, cUnitTypeAnimalPrey);
@@ -1029,7 +1035,7 @@ minInterval 5
     kbUnitQuerySetState(aliveAnimalQueryID, cUnitStateAlive);
     kbUnitQuerySetIgnoreKnockedOutUnits(aliveAnimalQueryID, true);
     kbUnitQuerySetAscendingSort(aliveAnimalQueryID, true);
-    kbUnitQuerySetMaximumDistance(aliveAnimalQueryID, cMaxResourceDistance);
+    kbUnitQuerySetMaximumDistance(aliveAnimalQueryID, maxResourceDistance);
 
     fruitQueryID = kbUnitQueryCreate("Fruit Query (Resource Gathering)");
     kbUnitQuerySetUnitType(fruitQueryID, cUnitTypeAbstractFruit);
@@ -1038,7 +1044,7 @@ minInterval 5
     kbUnitQuerySetState(fruitQueryID, cUnitStateAlive);
     kbUnitQuerySetIgnoreKnockedOutUnits(fruitQueryID, true);
     kbUnitQuerySetAscendingSort(fruitQueryID, true);
-    kbUnitQuerySetMaximumDistance(fruitQueryID, cMaxResourceDistance);
+    kbUnitQuerySetMaximumDistance(fruitQueryID, maxResourceDistance);
 
     buildingQueryID = kbUnitQueryCreate("Building Query (Resource Gathering)");
     kbUnitQuerySetUnitType(buildingQueryID, cUnitTypeLogicalTypeBuildingsNotWalls);
@@ -1047,7 +1053,7 @@ minInterval 5
     kbUnitQuerySetState(buildingQueryID, cUnitStateAlive);
     kbUnitQuerySetIgnoreKnockedOutUnits(buildingQueryID, true);
     kbUnitQuerySetAscendingSort(buildingQueryID, true);
-    kbUnitQuerySetMaximumDistance(buildingQueryID, cMaxResourceDistance);
+    kbUnitQuerySetMaximumDistance(buildingQueryID, maxResourceDistance);
 
     treeQueryID = kbUnitQueryCreate("Tree Query (Resource Gathering)");
     kbUnitQuerySetUnitType(treeQueryID, cUnitTypeTree);
@@ -1056,7 +1062,7 @@ minInterval 5
     kbUnitQuerySetState(treeQueryID, cUnitStateAlive);
     kbUnitQuerySetIgnoreKnockedOutUnits(treeQueryID, true);
     kbUnitQuerySetAscendingSort(treeQueryID, true);
-    kbUnitQuerySetMaximumDistance(treeQueryID, cMaxResourceDistance);
+    kbUnitQuerySetMaximumDistance(treeQueryID, maxResourceDistance);
 
     mineQueryID = kbUnitQueryCreate("Mine Query (Resource Gathering)");
     kbUnitQuerySetUnitType(mineQueryID, cUnitTypeMinedResource);
@@ -1065,7 +1071,7 @@ minInterval 5
     kbUnitQuerySetState(mineQueryID, cUnitStateAlive);
     kbUnitQuerySetIgnoreKnockedOutUnits(mineQueryID, true);
     kbUnitQuerySetAscendingSort(mineQueryID, true);
-    kbUnitQuerySetMaximumDistance(mineQueryID, cMaxResourceDistance);
+    kbUnitQuerySetMaximumDistance(mineQueryID, maxResourceDistance);
 
     sandalwoodQueryID = kbUnitQueryCreate("Sandalwood Query (Resource Gathering)");
     kbUnitQuerySetUnitType(sandalwoodQueryID, cUnitTypeTreeSandalwood);
@@ -1074,12 +1080,12 @@ minInterval 5
     kbUnitQuerySetState(sandalwoodQueryID, cUnitStateAlive);
     kbUnitQuerySetIgnoreKnockedOutUnits(sandalwoodQueryID, true);
     kbUnitQuerySetAscendingSort(sandalwoodQueryID, true);
-    kbUnitQuerySetMaximumDistance(sandalwoodQueryID, cMaxResourceDistance);
+    kbUnitQuerySetMaximumDistance(sandalwoodQueryID, maxResourceDistance);
   }
 
   kbGaiaUnitQueryResetResults(deadAnimalQueryID);
   kbGaiaUnitQuerySetPosition(deadAnimalQueryID, mainBasePos);
-  kbGaiaUnitQuerySetMaximumDistance(deadAnimalQueryID, cMaxResourceDistance);
+  kbGaiaUnitQuerySetMaximumDistance(deadAnimalQueryID, maxResourceDistance);
   int deadAnimalCount = kbGaiaUnitQueryExecute(deadAnimalQueryID);
 
   kbUnitQueryResetResults(aliveAnimalQueryID);
