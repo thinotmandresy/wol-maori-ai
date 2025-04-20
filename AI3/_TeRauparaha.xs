@@ -99,7 +99,7 @@ void sendStartupWarnings(void) {
     } else {
       xsNotify(
         "WARNING: " +
-        "This AI was not designed for custom scenarios and campaigns." +
+        "The Maori AI was not designed for custom scenarios and campaigns." +
         " It may not function as expected."
       );
     }
@@ -108,7 +108,7 @@ void sendStartupWarnings(void) {
   if (aiTreatyActive()) {
     xsNotify(
       "WARNING: " +
-      "This AI was not designed for treaty games." +
+      "The Maori AI was not designed for treaty games." +
       " It will likely perform poorly."
     );
   }
@@ -116,7 +116,7 @@ void sendStartupWarnings(void) {
   if (aiGetGameMode() != cGameModeSupremacy) {
     xsNotify(
       "WARNING: " +
-      "This AI was not designed for anything other than supremacy." +
+      "The Maori AI was not designed for anything other than supremacy." +
       " It will be unaware of the victory conditions," +
       " and therefore will not play optimally."
     );
@@ -125,7 +125,7 @@ void sendStartupWarnings(void) {
   if (kbUnitCount(cMyID, cUnitTypeHomeCityWaterSpawnFlag, cUnitStateAlive) >= 1) {
     xsNotify(
       "WARNING: " +
-      "This AI does not support water maps yet." +
+      "The Maori AI does not support water maps yet." +
       " Stay tuned for future updates."
     );
   }
