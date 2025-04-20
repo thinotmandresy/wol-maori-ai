@@ -32,6 +32,10 @@ bool isPlannedForConstruction(int unitTypeID = -1) {
   return(aiPlanGetIDByTypeAndVariableType(cPlanBuild, cBuildPlanBuildingTypeID, unitTypeID, true) >= 0);
 }
 
+bool isPlannedForResearch(int techID = -1) {
+  return(aiPlanGetIDByTypeAndVariableType(cPlanResearch, cResearchPlanTechID, techID, true) >= 0);
+}
+
 float min(float a = 0.0, float b = 0.0) {
   if (a < b) {
     return(a);
