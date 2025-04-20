@@ -1979,6 +1979,9 @@ minInterval 1
 {
   static int counter = 0;
 
+  if (kbGetAge() <= cAge2) {
+    return;
+  }
   if (kbUnitCount(cMyID, cUnitTypeMaoriPa, cUnitStateABQ) >= kbGetBuildLimit(cMyID, cUnitTypeMaoriPa)) {
     return;
   }
