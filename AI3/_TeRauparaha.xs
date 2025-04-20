@@ -1981,7 +1981,7 @@ minInterval 1
 {
   static int counter = 0;
 
-  if (kbGetAge() <= cAge2) {
+  if (kbGetAge() == cAge1 || (kbGetAge() <= cAge2 && isAgingUp() == false)) {
     return;
   }
   if (kbUnitCount(cMyID, cUnitTypeMaoriPa, cUnitStateABQ) >= kbGetBuildLimit(cMyID, cUnitTypeMaoriPa)) {
