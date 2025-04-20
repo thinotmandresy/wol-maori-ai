@@ -222,6 +222,7 @@ void handleStartingPaState(int planID = -1) {
   xsEnableRule("Voyaging");
   xsEnableRule("Housing");
   xsEnableRule("MarketManagement");
+  xsEnableRule("MaoriPaTechResearch");
 }
 
 void main(void) {
@@ -2117,4 +2118,27 @@ minInterval 1
   if (createResearchPlan(cTechDryStoneConstruction, cUnitTypeMarket) >= 0) { return; }
   if (createResearchPlan(cTechWoodCarving, cUnitTypeMarket) >= 0) { return; }
   if (createResearchPlan(cTechTradeMission, cUnitTypeMarket) >= 0) { return; }
+}
+
+rule MaoriPaTechResearch
+inactive
+minInterval 1
+{
+  if (kbGetAge() == cAge1 || (kbGetAge() == cAge2 && isAgingUp() == false)) {
+    return;
+  }
+
+  // LEVEL 1
+  if (createResearchPlan(cTechWhanau, cUnitTypeMaoriPa) >= 0) { return; }
+  if (createResearchPlan(cTechKumaraStorage, cUnitTypeMaoriPa) >= 0) { return; }
+  if (createResearchPlan(cTechPallisades, cUnitTypeMaoriPa) >= 0) { return; }
+
+  // LEVEL 2
+  if (createResearchPlan(cTechHapu, cUnitTypeMaoriPa) >= 0) { return; }
+  if (createResearchPlan(cTechFightingPlatforms, cUnitTypeMaoriPa) >= 0) { return; }
+
+  // LEVEL 3
+  if (createResearchPlan(cTechIwi, cUnitTypeMaoriPa) >= 0) { return; }
+  if (createResearchPlan(cTechHangi, cUnitTypeMaoriPa) >= 0) { return; }
+  if (createResearchPlan(cTechPakehaCannons, cUnitTypeMaoriPa) >= 0) { return; }
 }
