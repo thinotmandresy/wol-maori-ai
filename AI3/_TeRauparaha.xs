@@ -14,6 +14,7 @@ extern const float cResourceUnsafeDistance = 40.0;
 include "include/query.xs";
 include "include/comm.xs";
 include "include/utils.xs";
+include "include/plan.xs";
 
 // TODO -- Evaluate based on different criteria (safety, allies, etc.)
 float getMaxResourceDistance(int baseID = -1) {
@@ -220,6 +221,7 @@ void handleStartingPaState(int planID = -1) {
   xsEnableRule("TownBellReturnToWork");
   xsEnableRule("Voyaging");
   xsEnableRule("Housing");
+  xsEnableRule("MarketManagement");
 }
 
 void main(void) {
@@ -2048,4 +2050,71 @@ void handleHousePlanStateChange(int planID = -1)
 
     aiCommsSendStatementWithVector(playerID, cAICommPromptToAllyIWillBuildTC, position);
   }
+}
+
+rule MarketManagement
+inactive
+minInterval 1
+{
+  static int marketBuildPlanCounter = 0;
+  if (
+    isPlannedForConstruction(cUnitTypeMarket) == false &&
+    kbUnitCount(cMyID, cUnitTypeMarket, cUnitStateABQ) < kbGetBuildLimit(cMyID, cUnitTypeMarket) &&
+    (kbGetAge() >= cAge2 || (kbGetAge() == cAge1 && isAgingUp() == true))
+  )
+  {
+    marketBuildPlanCounter++;
+    int marketBuildPlanID = aiPlanCreate("Build Market " + marketBuildPlanCounter, cPlanBuild);
+    aiPlanSetEscrowID(marketBuildPlanID, cRootEscrowID);
+
+    aiPlanSetVariableInt(marketBuildPlanID, cBuildPlanBuildingTypeID, 0, cUnitTypeMarket);
+    aiPlanSetVariableFloat(marketBuildPlanID, cBuildPlanBuildingBufferSpace, 0, 5.0);
+
+    aiPlanSetEconomy(marketBuildPlanID, false);
+    aiPlanSetMilitary(marketBuildPlanID, true);
+    aiPlanSetBaseID(marketBuildPlanID, kbBaseGetMainID(cMyID));
+
+    aiPlanSetDesiredPriority(marketBuildPlanID, 50);
+    aiPlanAddUnitType(marketBuildPlanID, cUnitTypePOLYvillager, 1, 1, 1);
+    aiPlanSetNoMoreUnits(marketBuildPlanID, false);
+
+    aiPlanSetActive(marketBuildPlanID, true);
+  }
+
+  if (kbGetAge() == cAge1 && isAgingUp() == false) {
+    return;
+  }
+
+  if (createResearchPlan(cTechBirdSnares, cUnitTypeMarket) >= 0) { return; }
+  if (createResearchPlan(cTechStoneAdzes, cUnitTypeMarket) >= 0) { return; }
+
+  if (kbTechGetStatus(cTechBirdSnares) != cTechStatusActive && kbTechGetStatus(cTechStoneAdzes) != cTechStatusActive) {
+    return;
+  }
+
+  if (createResearchPlan(cTechRatSnares, cUnitTypeMarket) >= 0) { return; }
+  if (createResearchPlan(cTechEuropeanAxes, cUnitTypeMarket) >= 0) { return; }
+
+  if (kbTechGetStatus(cTechRatSnares) != cTechStatusActive && kbTechGetStatus(cTechEuropeanAxes) != cTechStatusActive) {
+    return;
+  }
+
+  if (kbGetAge() <= cAge2 && isAgingUp() == false) {
+    return;
+  }
+
+  // LEVEL 1
+  if (createResearchPlan(cTechWovenBaskets, cUnitTypeMarket) >= 0) { return; }
+  if (createResearchPlan(cTechBasaltQuarry, cUnitTypeMarket) >= 0) { return; }
+  if (createResearchPlan(cTechBarkCloth, cUnitTypeMarket) >= 0) { return; }
+
+  // LEVEL 2
+  if (createResearchPlan(cTechPohaKelpBags, cUnitTypeMarket) >= 0) { return; }
+  if (createResearchPlan(cTechPetroglyphs, cUnitTypeMarket) >= 0) { return; }
+  if (createResearchPlan(cTechTattooing, cUnitTypeMarket) >= 0) { return; }
+
+  // LEVEL 3
+  if (createResearchPlan(cTechDryStoneConstruction, cUnitTypeMarket) >= 0) { return; }
+  if (createResearchPlan(cTechWoodCarving, cUnitTypeMarket) >= 0) { return; }
+  if (createResearchPlan(cTechTradeMission, cUnitTypeMarket) >= 0) { return; }
 }
