@@ -14,10 +14,6 @@ include "include/query.xs";
 include "include/comm.xs";
 include "include/utils.xs";
 
-bool isAgingUp(void) {
-  return(kbUnitCount(cMyID, cUnitTypeAbstractWonder, cUnitStateBuilding) >= 1);
-}
-
 void sendStartupWarnings(void) {
   if (aiGetGameType() != cGameTypeRandom) {
     if (aiGetGameType() == cGameTypeSaved) {

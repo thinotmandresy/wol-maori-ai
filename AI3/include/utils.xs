@@ -45,3 +45,7 @@ float max(float a = 0.0, float b = 0.0) {
   }
   return(b);
 }
+
+bool isAgingUp(void) {
+  return(kbUnitCount(cMyID, cUnitTypeAbstractWonder, cUnitStateBuilding) >= 1);
+}
