@@ -17,12 +17,12 @@ include "include/utils.xs";
 void sendStartupWarnings(void) {
   if (aiGetGameType() != cGameTypeRandom) {
     if (aiGetGameType() == cGameTypeSaved) {
-      sendNotification(
+      xsNotify(
         "WARNING: " +
         "Due to some technical limitations, saved games are not supported."
       );
     } else {
-      sendNotification(
+      xsNotify(
         "WARNING: " +
         "This AI was not designed for custom scenarios and campaigns." +
         " It may not function as expected."
@@ -31,7 +31,7 @@ void sendStartupWarnings(void) {
   }
 
   if (aiTreatyActive()) {
-    sendNotification(
+    xsNotify(
       "WARNING: " +
       "This AI was not designed for treaty games." +
       " It will likely perform poorly."
@@ -39,7 +39,7 @@ void sendStartupWarnings(void) {
   }
 
   if (aiGetGameMode() != cGameModeSupremacy) {
-    sendNotification(
+    xsNotify(
       "WARNING: " +
       "This AI was not designed for anything other than supremacy." +
       " It will be unaware of the victory conditions," +
@@ -48,7 +48,7 @@ void sendStartupWarnings(void) {
   }
 
   if (kbUnitCount(cMyID, cUnitTypeHomeCityWaterSpawnFlag, cUnitStateAlive) >= 1) {
-    sendNotification(
+    xsNotify(
       "WARNING: " +
       "This AI does not support water maps yet." +
       " Stay tuned for future updates."

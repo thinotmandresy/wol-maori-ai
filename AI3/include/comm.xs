@@ -47,9 +47,3 @@ void chatEnemies(string message = "") {
     aiChat(playerID, message);
   }
 }
-
-void sendNotification(string message = "") {
-  xsSetContextPlayer(0); // Chats from Mother Nature turn into notifications.
-  chatAll(message);
-  xsSetContextPlayer(cMyID); // Return to the original player context.
-}
