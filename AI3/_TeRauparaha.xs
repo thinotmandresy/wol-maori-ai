@@ -219,6 +219,7 @@ void handleStartingPaState(int planID = -1) {
   xsEnableRule("TownBellCall");
   xsEnableRule("TownBellReturnToWork");
   xsEnableRule("Voyaging");
+  xsEnableRule("Housing");
 }
 
 void main(void) {
@@ -1969,5 +1970,79 @@ void handleVoyagePlanState(int planID = -1)
     }
 
     aiCommsSendStatementWithVector(playerID, cAICommPromptToAllyIWillDefendLocation, position);
+  }
+}
+
+rule Housing
+inactive
+minInterval 1
+{
+  static int counter = 0;
+
+  if (kbUnitCount(cMyID, cUnitTypeMaoriPa, cUnitStateABQ) >= kbGetBuildLimit(cMyID, cUnitTypeMaoriPa)) {
+    return;
+  }
+  if (isPlannedForConstruction(cUnitTypeMaoriPa) == true) {
+    return;
+  }
+
+  int mainBaseID = kbBaseGetMainID(cMyID);
+  vector mainBasePos = kbBaseGetLocation(cMyID, mainBaseID);
+
+  counter++;
+  int planID = aiPlanCreate("Build Pa " + counter, cPlanBuild);
+  aiPlanSetVariableInt(planID, cBuildPlanBuildingTypeID, 0, cUnitTypeMaoriPa);
+
+  aiPlanSetDesiredPriority(planID, 100);
+  aiPlanSetEscrowID(planID, cRootEscrowID);
+
+  aiPlanSetVariableVector(planID, cBuildPlanCenterPosition, 0, mainBasePos);
+  aiPlanSetVariableFloat(planID, cBuildPlanCenterPositionDistance, 0, 100.0);
+
+  aiPlanSetVariableInt(planID, cBuildPlanInfluenceUnitTypeID, 0, cUnitTypeWood);
+  aiPlanSetVariableFloat(planID, cBuildPlanInfluenceUnitDistance, 0, 30.0);
+  aiPlanSetVariableFloat(planID, cBuildPlanInfluenceUnitValue, 0, 10.0);
+  aiPlanSetVariableInt(planID, cBuildPlanInfluenceUnitFalloff, 0, cBPIFalloffLinear);
+    
+  aiPlanSetVariableInt(planID, cBuildPlanInfluenceUnitTypeID, 1, cUnitTypeMine);
+  aiPlanSetVariableFloat(planID, cBuildPlanInfluenceUnitDistance, 1, 40.0);
+  aiPlanSetVariableFloat(planID, cBuildPlanInfluenceUnitValue, 1, 300.0);
+  aiPlanSetVariableInt(planID, cBuildPlanInfluenceUnitFalloff, 1, cBPIFalloffLinear);
+    
+  aiPlanSetVariableInt(planID, cBuildPlanInfluenceUnitTypeID, 2, cUnitTypeMine);
+  aiPlanSetVariableFloat(planID, cBuildPlanInfluenceUnitDistance, 2, 10.0);
+  aiPlanSetVariableFloat(planID, cBuildPlanInfluenceUnitValue, 2, -300.0);
+  aiPlanSetVariableInt(planID, cBuildPlanInfluenceUnitFalloff, 2, cBPIFalloffNone);
+    
+  aiPlanSetVariableInt(planID, cBuildPlanInfluenceUnitTypeID, 0, cUnitTypeMaoriPa);
+  aiPlanSetVariableFloat(planID, cBuildPlanInfluenceUnitDistance, 0, 60.0);
+  aiPlanSetVariableFloat(planID, cBuildPlanInfluenceUnitValue, 0, -500.0);
+  aiPlanSetVariableInt(planID, cBuildPlanInfluenceUnitFalloff, 0, cBPIFalloffNone);
+
+  aiPlanSetEventHandler(planID, cPlanEventStateChange, "handleHousePlanStateChange");
+
+  aiPlanAddUnitType(planID, cUnitTypePOLYvillager, 8, 8, 8);
+
+  aiPlanSetActive(planID, true);
+}
+
+void handleHousePlanStateChange(int planID = -1)
+{
+  if (aiPlanGetState(planID) != cPlanStateBuild) {
+    return;
+  }
+
+  int placementID = aiPlanGetVariableInt(planID, cBuildPlanBuildingPlacementID, 0);
+  vector position = kbBuildingPlacementGetResultPosition(placementID);
+
+  for(playerID = 1 ; < cNumberPlayers) {
+    if (playerID == cMyID) {
+      continue;
+    }
+    if (kbIsPlayerEnemy(playerID)) {
+      continue;
+    }
+
+    aiCommsSendStatementWithVector(playerID, cAICommPromptToAllyIWillBuildTC, position);
   }
 }
