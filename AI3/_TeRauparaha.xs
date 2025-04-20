@@ -524,18 +524,21 @@ minInterval 5
     return;
   }
 
-  int paID = getUnit1(cUnitTypeMaoriPa);
-  if (paID == -1) {
-    return;
-  }
-
   for(resourceTypeID = 0 ; < 8) {
     if (kbResourceGet(resourceTypeID) < kbUnitCostPerResource(kbUnitGetProtoUnitID(rangatiraID), resourceTypeID)) {
       return;
     }
   }
 
-  aiRansomExplorer(rangatiraID, cRootEscrowID, paID);
+  for(i = 0; < kbUnitCount(cMyID, cUnitTypeMaoriPa, cUnitStateAlive)) {
+    int paID = getUnit1(cUnitTypeMaoriPa, cMyID, i);
+    int baseID = kbUnitGetBaseID(paID);
+    int baseOwner = kbBaseGetOwner(baseID);
+    if (kbBaseGetUnderAttack(baseOwner, baseID) == true) {
+      continue;
+    }
+    aiRansomExplorer(rangatiraID, cRootEscrowID, paID);
+  }
 }
 
 rule LivestockHerding
