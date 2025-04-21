@@ -223,6 +223,7 @@ void handleStartingPaState(int planID = -1) {
   xsEnableRule("Housing");
   xsEnableRule("MarketManagement");
   xsEnableRule("MaoriPaTechResearch");
+  xsEnableRule("SandalwoodProduction");
 }
 
 void main(void) {
@@ -2141,4 +2142,39 @@ minInterval 1
   if (createResearchPlan(cTechIwi, cUnitTypeMaoriPa) >= 0) { return; }
   if (createResearchPlan(cTechHangi, cUnitTypeMaoriPa) >= 0) { return; }
   if (createResearchPlan(cTechPakehaCannons, cUnitTypeMaoriPa) >= 0) { return; }
+}
+
+rule SandalwoodProduction
+inactive
+minInterval 1
+{
+  static int groveBuildPlanCounter = 0;
+  if (
+    isPlannedForConstruction(cUnitTypeSandalwoodGrove) == false &&
+    kbUnitCount(cMyID, cUnitTypeSandalwoodGrove, cUnitStateABQ) < kbGetBuildLimit(cMyID, cUnitTypeSandalwoodGrove) &&
+    kbGetAge() >= cAge3
+  )
+  {
+    groveBuildPlanCounter++;
+    int groveBuildPlanID = aiPlanCreate("Build Sandalwood Grove " + groveBuildPlanCounter, cPlanBuild);
+    aiPlanSetEscrowID(groveBuildPlanID, cRootEscrowID);
+
+    aiPlanSetVariableInt(groveBuildPlanID, cBuildPlanBuildingTypeID, 0, cUnitTypeSandalwoodGrove);
+    aiPlanSetVariableFloat(groveBuildPlanID, cBuildPlanBuildingBufferSpace, 0, 5.0);
+
+    aiPlanSetEconomy(groveBuildPlanID, true);
+    aiPlanSetMilitary(groveBuildPlanID, false);
+    aiPlanSetBaseID(groveBuildPlanID, kbBaseGetMainID(cMyID));
+
+    aiPlanSetDesiredPriority(groveBuildPlanID, 50);
+    aiPlanAddUnitType(groveBuildPlanID, cUnitTypePOLYvillager, 1, 1, 1);
+    aiPlanSetNoMoreUnits(groveBuildPlanID, false);
+
+    aiPlanSetActive(groveBuildPlanID, true);
+  }
+
+  return;
+
+  if (createResearchPlan(cTechSandalwoodTrade, cUnitTypeSandalwoodGrove) >= 0) { return; }
+  if (createResearchPlan(cTechIncenseTrade, cUnitTypeSandalwoodGrove) >= 0) { return; }
 }
